@@ -60,7 +60,7 @@ namespace fpng
 	static inline uint64_t swap64(uint64_t x)
 	{
 #if defined(__GNUC__) || defined(__clang__)
-		return __builtin_bswap32(x);
+		return __builtin_bswap64(x);
 #else
 		return simple_swap64(x);
 #endif
@@ -95,12 +95,6 @@ namespace fpng
 		}
 		return (s2 << 16) + s1;
 	}
-
-	struct deflate_huff_sym
-	{
-		uint16_t m_code;
-		uint8_t m_len;
-	};
 
 	static const uint16_t g_defl_len_sym[256] = {
 	  257,258,259,260,261,262,263,264,265,265,266,266,267,267,268,268,269,269,269,269,270,270,270,270,271,271,271,271,272,272,272,272,
