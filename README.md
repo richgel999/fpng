@@ -68,6 +68,10 @@ bool fpng_encode_image_to_file(const char* pFilename, const void* pImage, int w,
 
 Note the adler32 function in fpng.cpp could be vectorized for higher performance.
 
+## Fuzzing
+
+fpng.cpp has not been randomly fuzzed yet. I'll be fuzzing it later today (12/18/2021) using various tools/techniques.
+
 ## License
 
 fpng.cpp/.h: Public Domain or zlib (your choice). See the end of fpng.cpp.
