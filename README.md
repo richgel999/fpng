@@ -36,7 +36,7 @@ lodepng:          151.57 secs 352.1 MB
 stbi:             81.58 secs  486.4 MB
 ```
 
-182 of the qoi test images don't have alpha channels, so I'm guessing it's not being heavily tested with alpha images much. (This scenario is not contrived: I've seen large numbers of video games textures where the alpha channel contains highly correlated but complex images.)
+182 of the qoi test images don't have alpha channels, so I'm guessing it's not being heavily tested with alpha images much yet.
 
 ## Low-level description
 
