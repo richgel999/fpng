@@ -285,7 +285,7 @@ int main(int arg_c, char **arg_v)
 			}
 			else
 			{
-				fprintf(stderr, "Recognized option: %s\n", pArg);
+				fprintf(stderr, "Unrecognized option: %s\n", pArg);
 				return EXIT_FAILURE;
 			}
 		}
