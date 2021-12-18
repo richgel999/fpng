@@ -7,6 +7,8 @@ fpng.cpp compared to stb_image_write.h: fpng.cpp is over 10x faster with roughly
 
 fpng.cpp compared to lodepng.cpp: fpng.cpp is 12-16x faster with roughly 15-18% larger files. 
 
+On 32bpp images with correlated alpha signals (a common case in video games) qoi outputs files 1.7x larger vs. fpng and 1.98x larger vs. lodepng.
+
 Benchmark using the 184 QOI test images:
 
 ```
@@ -24,6 +26,17 @@ fpng:            3.40 secs  253.26 MB
 lodepng:         41.68 secs 220.40 MB
 stb_image_write: 37.23 secs 311.41 MB
 ```
+
+Benchmark using the 184 QOI test images, but with the green channel copied into alpha (to create a correlated alpha channel): 
+
+```
+qoi:              2.75 secs   697.2 MB
+fpng:             7.48 secs   404.0 MB
+lodepng:          151.57 secs 352.1 MB
+stbi:             81.58 secs  486.4 MB
+```
+
+182 of the qoi test images don't have alpha channels, so I'm guessing it's not being heavily tested with alpha images much. (This scenario is not contrived: I've seen large numbers of video games textures where the alpha channel contains highly correlated but complex images.)
 
 ## Low-level description
 
