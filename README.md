@@ -51,6 +51,8 @@ To generate .CSV output only:
 
 ## Using fpng 
 
+To use fpng.cpp in other programs, copy fpng.cpp/.h and Crc32.cpp/.h into your project. No other configuration or files are needed. Computing the CRC-32 of buffers is a substantial proportion of overall compression time in fpng, so if you have a faster CRC-32 function you can modify `fpng_crc()` in fpng.cpp to call that instead. The one included in Crc32.cpp doesn't utilize any special CPU instruction sets, so it could be faster. 
+
 `#include "fpng.h"` then call one of these C-style functions in the "fpng" namespace:
 
 ```
@@ -60,10 +62,7 @@ bool fpng_encode_image_to_file(const char* pFilename, const void* pImage, int w,
 
 `num_chans` must be 3 or 4. There must be w*3*h or w*4*h bytes pointed to by pImage. The image row pitch is always w*3 or w*4 bytes. There is no automatic determination if the image actually uses an alpha channel, so if you call it with 4 you will always get a 32bpp .PNG file.
 
-To use fpng.cpp in other programs, copy the fpng.cpp/.h and Crc32.cpp/.h into your project. No other configuration or files are needed. Computing the CRC-32 of buffers is a substantial proportion of overall compression time in fpng, so if you have a faster CRC-32 function you can modify `fpng_crc()` in fpng.cpp to call it instead. The one included does not utilize any special CPU instruction sets, so it could be faster. 
-
-Also, the adler32 function in fpng.cpp could be vectorized for higher performance.
-
+Note the adler32 function in fpng.cpp could be vectorized for higher performance.
 
 ## License
 
