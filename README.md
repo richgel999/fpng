@@ -48,6 +48,8 @@ lodepng v20210627 fetched 12/18/2021
 
 stb_image_write.h v1.16 fetched 12/18/2021
 
+qoi.h fetched 12/18/2021
+
 ## Building
 
 To build, compile from the included .SLN with Visual Studio 2019/2022 or use cmake to generate a .SLN file. For Linux/OSX, use "cmake ." then "make". Tested with MSVC 2019/gcc/clang.
