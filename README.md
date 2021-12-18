@@ -64,7 +64,7 @@ bool fpng_encode_image_to_memory(const void* pImage, int w, int h, int num_chans
 bool fpng_encode_image_to_file(const char* pFilename, const void* pImage, int w, int h, int num_chans, bool flip);
 ```
 
-`num_chans` must be 3 or 4. There must be w*3*h or w*4*h bytes pointed to by pImage. The image row pitch is always w*3 or w*4 bytes. There is no automatic determination if the image actually uses an alpha channel, so if you call it with 4 you will always get a 32bpp .PNG file.
+`num_chans` must be 3 or 4. There must be ```w*3*h``` or ```w*4*h``` bytes pointed to by pImage. The image row pitch is always ```w*3``` or ```w*4``` bytes. There is no automatic determination if the image actually uses an alpha channel, so if you call it with 4 you will always get a 32bpp .PNG file.
 
 Note the adler32 function in fpng.cpp could be vectorized for higher performance.
 
