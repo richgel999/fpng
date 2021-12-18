@@ -70,7 +70,7 @@ Note the adler32 function in fpng.cpp could be vectorized for higher performance
 
 ## Fuzzing
 
-fpng.cpp has not been randomly fuzzed yet. I'll be fuzzing it later today (12/18/2021) using various tools/techniques.
+I've started to fuzz fpng.cpp, but it will take several days to complete.
 
 ## License
 
