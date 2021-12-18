@@ -85,7 +85,7 @@ Note the adler32 function in fpng.cpp could be vectorized for higher performance
 
 ## Fuzzing
 
-I've started to fuzz fpng.cpp, but it will take several days to complete.
+I've started to fuzz fpng.cpp, but it will take several days to complete. So far it's survived several different random fuzz methods.
 
 ## License
 
