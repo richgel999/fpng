@@ -1,5 +1,7 @@
 # fpng
-Very fast C++ .PNG writer for 24/32bpp images. fpng.cpp was written to see just how fast you can write .PNG's without sacrificing too much compression, and to determine how slow the existing .PNG writers are. (Turns out they are quite slow.) On average, fpng.cpp produces files 1.6-15.8% smaller than [QOI](https://github.com/phoboslab/qoi) but is 1.4-1.5x slower on 24bpp images.
+Very fast C++ .PNG writer for 24/32bpp images. fpng.cpp was written to see just how fast you can write .PNG's without sacrificing too much compression, and to determine how slow the existing .PNG writers are. (Turns out they are quite slow.) 
+
+On average, fpng.cpp produces files roughly 1-15% smaller than [QOI](https://github.com/phoboslab/qoi) but is 1.4-1.5x slower on 24bpp images.
 
 fpng.cpp compared to stb_image_write.h: fpng.cpp is over 10x faster with roughly 16-18% smaller files. (Surprisingly fpng.cpp is outputting smaller files on average vs. stb_image_write.h, using a substantially simpler/faster compressor.)
 
