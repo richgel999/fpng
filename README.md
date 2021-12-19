@@ -68,6 +68,8 @@ To generate .CSV output only:
 
 There will be several output files written to the current directory: stbi.png, lodepng.png, qoi.qoi, and fpng.png. Statistics or .CSV data will be printed to stdout, and errors to stderr.
 
+The test app decompresses fpng's output using lodepng and stb_image to validate the compressed data. The compressed output has also been validated using [pngcheck](http://www.libpng.org/pub/png/apps/pngcheck.html).
+
 ## Using fpng 
 
 To use fpng.cpp in other programs, copy fpng.cpp/.h and Crc32.cpp/.h into your project. No other configuration or files are needed. Computing the CRC-32 of buffers is a substantial proportion of overall compression time in fpng, so if you have a faster CRC-32 function you can modify `fpng_crc()` in fpng.cpp to call that instead. The one included in Crc32.cpp doesn't utilize any special CPU instruction sets, so it could be faster. 
