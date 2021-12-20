@@ -15,36 +15,36 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="fpng.cpp">
+    <ClCompile Include="src/fpng.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Crc32.cpp">
+    <ClCompile Include="src/Crc32.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="fpng_test.cpp">
+    <ClCompile Include="src/fpng_test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="lodepng.cpp">
+    <ClCompile Include="src/lodepng.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Crc32.h">
+    <ClInclude Include="src/Crc32.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="fpng.h">
+    <ClInclude Include="src/fpng.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="qoi.h">
+    <ClInclude Include="src/qoi.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="stb_image.h">
+    <ClInclude Include="src/stb_image.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="stb_image_write.h">
+    <ClInclude Include="src/stb_image_write.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="lodepng.h">
+    <ClInclude Include="src/lodepng.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

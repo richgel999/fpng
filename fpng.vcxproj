@@ -143,18 +143,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Crc32.cpp" />
-    <ClCompile Include="fpng.cpp" />
-    <ClCompile Include="fpng_test.cpp" />
-    <ClCompile Include="lodepng.cpp" />
+    <ClCompile Include="src/Crc32.cpp" />
+    <ClCompile Include="src/fpng.cpp" />
+    <ClCompile Include="src/fpng_test.cpp" />
+    <ClCompile Include="src/lodepng.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Crc32.h" />
-    <ClInclude Include="fpng.h" />
-    <ClInclude Include="lodepng.h" />
-    <ClInclude Include="qoi.h" />
-    <ClInclude Include="stb_image.h" />
-    <ClInclude Include="stb_image_write.h" />
+    <ClInclude Include="src/Crc32.h" />
+    <ClInclude Include="src/fpng.h" />
+    <ClInclude Include="src/lodepng.h" />
+    <ClInclude Include="src/qoi.h" />
+    <ClInclude Include="src/stb_image.h" />
+    <ClInclude Include="src/stb_image_write.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
