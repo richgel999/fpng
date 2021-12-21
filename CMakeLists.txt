@@ -25,7 +25,7 @@ if (NOT MSVC)
    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 
    set(CMAKE_CXX_FLAGS -std=c++11)
-   set(GCC_COMPILE_FLAGS "-fvisibility=hidden -fPIC -fno-strict-aliasing -D_LARGEFILE64_SOURCE=1 -D_FILE_OFFSET_BITS=64 -Wall -Wextra")
+   set(GCC_COMPILE_FLAGS "-fvisibility=hidden -fPIC -fno-strict-aliasing -D_LARGEFILE64_SOURCE=1 -D_FILE_OFFSET_BITS=64 -Wall -Wextra -Isrc")
 
    if (NOT BUILD_X64)
 	  set(GCC_COMPILE_FLAGS "${GCC_COMPILE_FLAGS} -m32")
@@ -49,10 +49,10 @@ else()
 endif()
 
 set(FPNG_SRC_LIST ${COMMON_SRC_LIST} 
-	fpng.cpp
-	Crc32.cpp
-	fpng_test.cpp
-	lodepng.cpp
+	src/fpng.cpp
+	src/Crc32.cpp
+	src/fpng_test.cpp
+	src/lodepng.cpp
 	)
 
 if (APPLE)
