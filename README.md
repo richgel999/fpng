@@ -39,6 +39,8 @@ stb_image:       486.44 MB  4.63 mps      46.25 mps
 lodepng:         352.10 MB  4.25 mps      28.84 mps
 ```
 
+Note FPNG's built-in (precomputed) dynamic Huffman tables (used in the default one pass mode) were generated using the 6,600 PNG images I use for testing texture compressors, not QOI's test images.
+
 Benchmarks using the included fpng_test tool, MSVC 2019, on a Xeon E5-2690 3.00 GHz
 
 fpng's compressor places a special private ancillary chunk in its output files, which other PNG decompressors will ignore. The decompressor uses this chunk to determine if the file was written by fpng (enabling fast decompression). This chunk's definition is [here](https://github.com/richgel999/fpng/wiki/fdEC-PNG-chunk-definition).
