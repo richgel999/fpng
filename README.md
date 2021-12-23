@@ -69,6 +69,10 @@ From the "bin" directory, run "fpng_test.exe" or "./fpng_test" like this:
 
 ```fpng_test.exe <image_filename.png>```
 
+For two pass compression (slower compression, usually faster decompression, smaller average file size):
+
+```fpng_test.exe -s <image_filename.png>```
+
 To generate .CSV output only:
 
 ```fpng_test.exe -c <image_filename.png>```
