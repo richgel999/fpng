@@ -1,5 +1,8 @@
 # fpng
-fpng is a very fast C++ .PNG image reader/writer for 24/32bpp images. fpng.cpp was written to see just how fast you can write .PNG's without sacrificing too much compression relative to QOI and stb_image_write. The files written by fpng follow the [PNG standard](https://www.w3.org/TR/PNG/), are readable using any PNG decoder, and validate successfully using [pngcheck](https://www.w3.org/TR/PNG/). 
+fpng is a very fast C++ .PNG image reader/writer for 24/32bpp images. fpng.cpp was written to see just how fast you can write .PNG's without sacrificing too much compression relative to QOI and stb_image_write. The files written by fpng follow the [PNG standard](https://www.w3.org/TR/PNG/), are readable using any PNG decoder, and validate successfully using [pngcheck](https://www.w3.org/TR/PNG/).
+
+Here's an example image encoded by fpng (a downsampled version of "bridge" from [here](http://imagecompression.info/test_images/)):
+![fpng encoded "bridge" image](https://github.com/richgel999/fpng/blob/main/example.png)
 
 This version of FPNG always uses PNG filter #2 and is limited to only RLE matches (i.e. LZ matches with a match distance of either 3 or 4). It's around 5% weaker than the original release, which used LZRW1 parsing. (I'll eventually add back in the original parser as an option, but doing that will add more code/complexity to the project.)
 
