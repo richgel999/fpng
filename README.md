@@ -24,8 +24,8 @@ A real-world benchmark using the 184 QOI test images (note 182 of the qoi test i
 ```
                  comp_size  avg_comp_mps  avg_decomp_mps
 fpng_1_pass:     392.45 MB  115.17 mps    161.92 mps
-fpng_2_pass:     374.76 MB  71.29 mps     164.12 mps
 qoi:             359.55 MB  88.22 mps     156.24 mps
+fpng_2_pass:     374.76 MB  71.29 mps     164.12 mps
 stb_image:       425.64 MB  5.71 mps      52.18 mps
 lodepng:         300.14 MB  5.20 mps      29.63 mps
 ```
