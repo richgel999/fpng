@@ -64,7 +64,7 @@ qoi.h fetched 12/18/2021
 
 fpng's compressor uses a custom pixel-wise Deflate compressor which was optimized for simplicity over high ratios. The "parser" only supports RLE matches using a match distance of 3/4 bytes, all literals (except the PNG filter bytes) are output in groups of 3 or 4, all matches are multiples of 3/4 bytes, and it only utilizes a single dynamic Huffman block within a single PNG IDAT chunk. It utilizes 64-bit registers and exploits unaligned little endian reads/writes. (On big endian CPU's it'll use 32/64bpp byteswaps.)  
 
-There are two compressor variants in this release: a faster single pass compressor that utilizes a set of precomputed Huffman tables, or a slightly better two pass compressor that results in smaller files (enabled by passing FPNG_ENCODE_SLOWER flag to the compressor).
+There are two compressor variants in this release: a faster single pass compressor that utilizes a set of precomputed Huffman tables, or a slightly better two pass compressor that results in smaller files (enabled by passing FPNG_ENCODE_SLOWER flag to the compressor). fpng will fall back to using uncompressed Deflate blocks if the image fails to compress.
 
 The fast decompressor included in fpng.cpp can explictly only handle PNG files created by fpng. To detect these files, it looks for a PNG private ancillary chunk named "fdEC", which other readers will ignore because it's not marked as a "critical" PNG chunk. If this chunk isn't found, or the file doesn't conform to fpng's single IDAT and zlib constraints, the decompressor returns FPNG_DECODE_NOT_FPNG. The decompressor has numerous checks to ensure the PNG file was written by fpng.
 
