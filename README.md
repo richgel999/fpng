@@ -4,10 +4,6 @@ fpng is a very fast C++ .PNG image reader/writer for 24/32bpp images. fpng.cpp w
 Here's an example image encoded by fpng (a downsampled version of "bridge" from [here](http://imagecompression.info/test_images/)):
 ![fpng encoded "bridge" image](https://github.com/richgel999/fpng/blob/main/example.png)
 
-This version of FPNG always uses PNG filter #2 and is limited to only RLE matches (i.e. LZ matches with a match distance of either 3 or 4). It's around 5% weaker than the original release, which used LZRW1 parsing. (I'll eventually add back in the original parser as an option, but doing that will add more code/complexity to the project.)
-
-Note the fpng decoder can explictly/purposely only decode PNG files written by fpng, otherwise it returns fpng::FPNG_DECODE_NOT_FPNG (so you can fall back to a general purpose PNG decoder).
-
 fpng.cpp compression compared to stb_image_write.h: 12-19x faster with roughly 5-11% avg. smaller files.
 fpng.cpp decompression compared to stb_image_write.h: ~3x faster
 
@@ -44,9 +40,13 @@ stb_image:       486.44 MB  4.63 mps      46.25 mps
 lodepng:         352.10 MB  4.25 mps      28.84 mps
 ```
 
-Note fpng's built-in (precomputed) dynamic Huffman tables (used in the default one pass mode) were generated from the 6,600 images I use for testing texture compressors, not QOI's test images.
-
 Benchmarks using the included fpng_test tool, MSVC 2019, on a Xeon E5-2690 3.00 GHz
+
+This version of FPNG always uses PNG filter #2 and is limited to only RLE matches (i.e. LZ matches with a match distance of either 3 or 4). It's around 5% weaker than the original release, which used LZRW1 parsing. (I'll eventually add back in the original parser as an option, but doing that will add more code/complexity to the project.)
+
+Importantly, the fpng decoder can explictly/purposely only decode PNG files written by fpng, otherwise it returns fpng::FPNG_DECODE_NOT_FPNG (so you can fall back to a general purpose PNG decoder).
+
+Note fpng's built-in (precomputed) dynamic Huffman tables (used in the default one pass mode) were generated from the 6,600 images I use for testing texture compressors.
 
 fpng's compressor places a special private ancillary chunk in its output files, which other PNG decompressors will ignore. The decompressor uses this chunk to determine if the file was written by fpng (enabling fast decompression). This chunk's definition is [here](https://github.com/richgel999/fpng/wiki/fdEC-PNG-chunk-definition).
 
