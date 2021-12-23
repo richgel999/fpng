@@ -88,33 +88,41 @@ To use fpng.cpp in other programs, copy fpng.cpp/.h and Crc32.cpp/.h into your p
 `#include "fpng.h"` then call one of these C-style functions in the "fpng" namespace to encode an image:
 
 ```
+namespace fpng {
 bool fpng_encode_image_to_memory(const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, std::vector<uint8_t>& out_buf, uint32_t flags = 0);
 bool fpng_encode_image_to_file(const char* pFilename, const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, uint32_t flags = 0);
+}
 ```
 
 `num_chans` must be 3 or 4. There must be ```w*3*h``` or ```w*4*h``` bytes pointed to by pImage. The image row pitch is always ```w*3``` or ```w*4``` bytes. There is no automatic determination if the image actually uses an alpha channel, so if you call it with 4 you will always get a 32bpp .PNG file.
 
-The included fast decoder is designed to only decode PNG files created by fpng. However, it has a full PNG chunk parser, and when it detects PNG files not written by fpng it returns the error code "FPNG_DECODE_NOT_FPNG" so you can fall back to a general purpose PNG reader.
+The included fast decoder is designed to only decode PNG files created by fpng. However, it has a full PNG chunk parser, and when it detects PNG files not written by fpng it returns the error code `FPNG_DECODE_NOT_FPNG` so you can fall back to a general purpose PNG reader.
 
 ```
+namespace fpng {
 int fpng_get_info(const void* pImage, uint32_t image_size, uint32_t& width, uint32_t& height, uint32_t& channels_in_file);
 int fpng_decode_memory(const void* pImage, uint32_t image_size, std::vector<uint8_t>& out, uint32_t& width, uint32_t& height, uint32_t& channels_in_file, uint32_t desired_channels);
 int fpng_decode_file(const char* pFilename, std::vector<uint8_t>& out, uint32_t& width, uint32_t& height, uint32_t& channels_in_file, uint32_t desired_channels);
+}
 ```
 
 `pImage` and `image_size` point to the PNG file data.
 
-width, height, channels_in_file will be set to the image's dimensions and number of channels, which will always be 3 or 4.
+`width`, `height`, `channels_in_file` will be set to the image's dimensions and number of channels, which will always be 3 or 4.
 
-desired_channels must be 3 or 4. If the input PNG file is 32bpp and you request 24bpp, the alpha channel be discarded. If the input is 24bpp and you request 32bpp, the alpha channel will be set to 0xFF.
+`desired_channels` must be 3 or 4. If the input PNG file is 32bpp and you request 24bpp, the alpha channel be discarded. If the input is 24bpp and you request 32bpp, the alpha channel will be set to 0xFF.
 
-The return code will be fpng::FPNG_DECODE_SUCCESS on success, fpng::FPNG_DECODE_NOT_FPNG if the PNG file should be decoded with a general purpose decoder, or one of the other error values.
+The return code will be `fpng::FPNG_DECODE_SUCCESS` on success, `fpng::FPNG_DECODE_NOT_FPNG` if the PNG file should be decoded with a general purpose decoder, or one of the other error values.
 
 ## Fuzzing
 
 fpng's encoder (and decoder) has been fuzzed with random inputs and random image dimensions. The -e and -E options are used for this sort of fuzzing.
 
-The fpng decoder's parser has been fuzzed with [zzuf](http://caca.zoy.org/wiki/zzuf) so far. For more efficient decoder fuzzing (and more coverage), set FPNG_DISABLE_DECODE_CRC32_CHECKS to 1 in fpng.cpp before fuzzing.
+The fpng decoder's parser has been fuzzed with [zzuf](http://caca.zoy.org/wiki/zzuf). For more efficient decoder fuzzing (and more coverage), set FPNG_DISABLE_DECODE_CRC32_CHECKS to 1 in fpng.cpp before fuzzing. The -f option is used for fuzzing, like this:
+
+```
+zzuf -s 1:1000000 ./fpng_test -f fpng.png
+```
 
 ## License
 
