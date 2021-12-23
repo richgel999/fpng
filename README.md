@@ -1,11 +1,11 @@
 # fpng
 fpng is a very fast C++ .PNG image reader/writer for 24/32bpp images. fpng.cpp was written to see just how fast you can write .PNG's without sacrificing too much compression relative to QOI and stb_image_write. The files written by fpng follow the [PNG standard](https://www.w3.org/TR/PNG/), are readable using any PNG decoder, and validate successfully using [pngcheck](https://www.w3.org/TR/PNG/).
 
-Here's an example image encoded by fpng (a downsampled version of "bridge" from [here](http://imagecompression.info/test_images/)):
-![fpng encoded "bridge" image](https://github.com/richgel999/fpng/blob/main/example.png)
-
 fpng.cpp compression compared to stb_image_write.h: 12-19x faster with roughly 5-11% avg. smaller files.
 fpng.cpp decompression compared to stb_image_write.h: ~3x faster
+
+Here's an example image encoded by fpng (a downsampled version of "bridge" from [here](http://imagecompression.info/test_images/)):
+![fpng encoded "bridge" image](https://github.com/richgel999/fpng/blob/main/example.png)
 
 A real-world benchmark using my assortment of 303 24/32bpp test images used for GPU texture compression benchmarks (mps="megapixels/second", sorted by compression rate):
 
