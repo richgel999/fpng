@@ -54,6 +54,12 @@ Note fpng's built-in (precomputed) dynamic Huffman tables (used in the default o
 
 fpng's compressor places a special private ancillary chunk in its output files, which other PNG decompressors will ignore. The decompressor uses this chunk to determine if the file was written by fpng (enabling fast decompression). This chunk's definition is [here](https://github.com/richgel999/fpng/wiki/fdEC-PNG-chunk-definition).
 
+lodepng v20210627 fetched 12/18/2021
+
+stb_image_write.h v1.16 fetched 12/18/2021
+
+qoi.h fetched 12/18/2021
+
 ## Low-level description
 
 fpng's compressor uses a custom pixel-wise Deflate compressor which was optimized for simplicity over high ratios. The "parser" only supports RLE matches using a match distance of 3/4 bytes, all literals (except the PNG filter bytes) are output in groups of 3 or 4, all matches are multiples of 3/4 bytes, and it only utilizes a single dynamic Huffman block within a single PNG IDAT chunk. It utilizes 64-bit registers and exploits unaligned little endian reads/writes. (On big endian CPU's it'll use 32/64bpp byteswaps.)  
@@ -65,12 +71,6 @@ The fast decompressor included in fpng.cpp can explictly only handle PNG files c
 The decompressor's memory usage is low relative to other PNG decompressors, because it doesn't need to create any temporary buffers to temporarily hold the decompressed data. (This is one side benefit of always using LZ matches with a distance of only 3 or 4 bytes.) The only large allocation is the one used to hold the output image buffer, which it directly decompresses into. This property may be useful on embedded platforms.
 
 Passes over the input image and dynamic allocations are minimized, although it does use ```std::vector``` internally. The first scanline always uses filter #0, and the rest use filter #2 (previous scanline). It uses the fast CRC-32 code described by Brumme [here](https://create.stephan-brumme.com/crc32/). The original high-level PNG function (that code that writes the headers) was written by [Alex Evans](https://gist.github.com/908299).
-
-lodepng v20210627 fetched 12/18/2021
-
-stb_image_write.h v1.16 fetched 12/18/2021
-
-qoi.h fetched 12/18/2021
 
 ## Building
 
