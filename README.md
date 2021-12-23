@@ -42,7 +42,7 @@ lodepng:         352.10 MB  4.25 mps      28.84 mps
 
 A well-behaved lossless compressor should output files roughly up to 1/3rd larger in this test. QOI's compressed output files are 1.94x larger vs. the 24bpp variants (697.20MB vs. 359.55MB), which is significantly more expansion than I would expect.
 
-Benchmarks using the included fpng_test tool, MSVC 2019, on a Xeon E5-2690 3.00 GHz
+Benchmarks were made using the included fpng_test tool to generate .CSV files, MSVC 2019, on a Xeon E5-2690 3.00 GHz
 
 ## Notes
 
