@@ -23,7 +23,7 @@ A real-world benchmark using the 184 QOI test images (note 182 of the qoi test i
 
 ```
                  comp_size  avg_comp_mps  avg_decomp_mps
-fpng_1_pass:     392.45 MB	115.17 mps	  161.92 mps
+fpng_1_pass:     392.45 MB  115.17 mps    161.92 mps
 fpng_2_pass:     374.76 MB  71.29 mps     164.12 mps
 qoi:             359.55 MB  88.22 mps     156.24 mps
 stb_image:       425.64 MB  5.71 mps      52.18 mps
@@ -35,8 +35,8 @@ An artificial benchmark using the 184 QOI test images, but with the green channe
 ```
                  comp_size  avg_comp_mps  avg_decomp_mps
 qoi:             697.20 MB  154.43 mps    160.30 mps
-fpng_1_pass:     540.61 MB	93.10 mps	  128.43 mps
-fpng_2_pass:     487.99 MB	59.12 mps	  136.46 mps
+fpng_1_pass:     540.61 MB  93.10 mps     128.43 mps
+fpng_2_pass:     487.99 MB  59.12 mps     136.46 mps
 stb_image:       486.44 MB  4.63 mps      46.25 mps
 lodepng:         352.10 MB  4.25 mps      28.84 mps
 ```
