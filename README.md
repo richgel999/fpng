@@ -29,7 +29,7 @@ stb_image:       425.64 MB  5.71 mps      52.18 mps
 lodepng:         300.14 MB  5.20 mps      29.63 mps
 ```
 
-An artificial benchmark using the 184 QOI test images, but with the green channel swizzled into alpha and all images compressed as 32bpp (to easily create a correlated alpha channel, common in video game textures): 
+An artificial benchmark using the 184 QOI test images, but with the green channel swizzled into alpha and all images compressed as 32bpp (to easily create a correlated alpha channel, common in video game textures):
 
 ```
                  comp_size  avg_comp_mps  avg_decomp_mps
@@ -39,6 +39,8 @@ fpng_2_pass:     487.99 MB  59.12 mps     136.46 mps
 stb_image:       486.44 MB  4.63 mps      46.25 mps
 lodepng:         352.10 MB  4.25 mps      28.84 mps
 ```
+
+A well-behaved lossless compressor should output files roughly up to 1/3rd larger in this test. QOI's compressed output files are 1.94x larger vs. the 24bpp variants (697.20MB vs. 359.55MB), which is significantly more expansion than I would expect.
 
 Benchmarks using the included fpng_test tool, MSVC 2019, on a Xeon E5-2690 3.00 GHz
 
