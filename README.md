@@ -6,7 +6,7 @@ This version of FPNG always uses PNG filter #2 and is limited to only RLE matche
 fpng.cpp compression compared to stb_image_write.h: 12-19x faster with roughly 5-11% avg. smaller files.
 fpng.cpp decompression compared to stb_image_write.h: ~3x faster
 
-A real-world benchmark using my assortment of 303 24/32bpp test images we use for GPU texture compression benchmarks (mps="megapixels/second", sorted by compression rate):
+A real-world benchmark using my assortment of 303 24/32bpp test images used for GPU texture compression benchmarks (mps="megapixels/second", sorted by compression rate):
 
 ```
                  comp_size  avg_comp_mps  avg_decomp_mps
