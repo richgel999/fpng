@@ -7,7 +7,7 @@ fpng.cpp decompression compared to stb_image_write.h: ~3x faster
 Here's an example image encoded by fpng (a downsampled version of "bridge" from [here](http://imagecompression.info/test_images/)):
 ![fpng encoded "bridge" image](https://github.com/richgel999/fpng/blob/main/example.png)
 
-A real-world benchmark using my assortment of 303 24/32bpp test images used for GPU texture compression benchmarks (mps="megapixels/second", sorted by compression rate):
+A real-world benchmark using an assortment of 303 24/32bpp test images used for GPU texture compression benchmarks (mps="megapixels/second", sorted by compression rate):
 
 ```
                  comp_size  avg_comp_mps  avg_decomp_mps
