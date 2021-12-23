@@ -39,7 +39,7 @@ stb_image:       486.44 MB  4.63 mps      46.25 mps
 lodepng:         352.10 MB  4.25 mps      28.84 mps
 ```
 
-Note fpng's built-in (precomputed) dynamic Huffman tables (used in the default one pass mode) were generated using the 6,600 PNG images I use for testing texture compressors, not QOI's test images.
+Note fpng's built-in (precomputed) dynamic Huffman tables (used in the default one pass mode) were generated from the 6,600 images I use for testing texture compressors, not QOI's test images.
 
 Benchmarks using the included fpng_test tool, MSVC 2019, on a Xeon E5-2690 3.00 GHz
 
