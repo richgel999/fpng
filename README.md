@@ -47,7 +47,7 @@ fpng's compressor places a special private ancillary chunk in its output files, 
 
 ## Low-level description
 
-fpng's compressor uses a custom image aware pixel-wise Deflate compressor which was optimized for simplicity over high ratios. The "parser" only supports RLE matches using a match distance of 3/4 bytes, all literals (except the PNG filter bytes) are output in groups of 3 or 4, all matches are multiples of 3/4 bytes, and it only utilizes a single dynamic Huffman block within a single PNG IDAT chunk. It utilizes 64-bit registers and exploits unaligned little endian reads/writes. (On big endian CPU's it'll use 32/64bpp byteswaps.)  
+fpng's compressor uses a custom pixel-wise Deflate compressor which was optimized for simplicity over high ratios. The "parser" only supports RLE matches using a match distance of 3/4 bytes, all literals (except the PNG filter bytes) are output in groups of 3 or 4, all matches are multiples of 3/4 bytes, and it only utilizes a single dynamic Huffman block within a single PNG IDAT chunk. It utilizes 64-bit registers and exploits unaligned little endian reads/writes. (On big endian CPU's it'll use 32/64bpp byteswaps.)  
 
 There are two compressor variants in this release: a faster single pass compressor that utilizes a set of precomputed Huffman tables, or a slightly better two pass compressor that results in smaller files (enabled by passing FPNG_ENCODE_SLOWER flag to the compressor).
 
