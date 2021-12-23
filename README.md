@@ -28,7 +28,7 @@ stb_image:       425.64 MB  5.71 mps      52.18 mps
 lodepng:         300.14 MB  5.20 mps      29.63 mps
 ```
 
-An artificial benchmark using the 184 QOI test images, but with the green channel swizzled into alpha and all images compressed as 32bpp (to create a correlated alpha channel, common in video game textures): 
+An artificial benchmark using the 184 QOI test images, but with the green channel swizzled into alpha and all images compressed as 32bpp (to easily create a correlated alpha channel, common in video game textures): 
 
 ```
                  comp_size  avg_comp_mps  avg_decomp_mps
