@@ -96,6 +96,11 @@ inline void query_counter_frequency(timer_ticks* pTicks)
 #error TODO
 #endif
 
+double get_timer()
+{
+	return interval_timer::ticks_to_secs(interval_timer::get_ticks());
+}
+
 interval_timer::interval_timer() : m_start_time(0), m_stop_time(0), m_started(false), m_stopped(false)
 {
 	if (!g_timer_freq)
@@ -264,24 +269,466 @@ static void write_func_stbi(void* context, void* data, int size)
 	memcpy(pVec->data() + cur_s, data, size);
 }
 
+static bool load_listing_file(const std::string& f, std::vector<std::string>& filenames)
+{
+	std::string filename(f);
+	//filename.erase(0, 1);
+
+	FILE* pFile = nullptr;
+#ifdef _WIN32
+	fopen_s(&pFile, filename.c_str(), "r");
+#else
+	pFile = fopen(filename.c_str(), "r");
+#endif
+
+	if (!pFile)
+	{
+		fprintf(stderr, "Failed opening listing file: \"%s\"\n", filename.c_str());
+		return false;
+	}
+
+	uint32_t total_filenames = 0;
+
+	for (; ; )
+	{
+		char buf[3072];
+		buf[0] = '\0';
+
+		char* p = fgets(buf, sizeof(buf), pFile);
+		if (!p)
+		{
+			if (ferror(pFile))
+			{
+				fprintf(stderr, "Failed reading from listing file: \"%s\"\n", filename.c_str());
+
+				fclose(pFile);
+				return false;
+			}
+			else
+				break;
+		}
+
+		std::string read_filename(p);
+		while (read_filename.size())
+		{
+			if (read_filename[0] == ' ')
+				read_filename.erase(0, 1);
+			else
+				break;
+		}
+
+		while (read_filename.size())
+		{
+			const char c = read_filename.back();
+			if ((c == ' ') || (c == '\n') || (c == '\r'))
+				read_filename.erase(read_filename.size() - 1, 1);
+			else
+				break;
+		}
+
+		if (read_filename.size())
+		{
+			filenames.push_back(read_filename);
+			total_filenames++;
+		}
+	}
+
+	fclose(pFile);
+
+	printf("Successfully read %u filenames(s) from listing file \"%s\"\n", total_filenames, filename.c_str());
+
+	return true;
+}
+
+#include <random>
+
+class mrand
+{
+	std::mt19937 m_mt;
+
+public:
+	mrand() {	}
+
+	mrand(uint32_t s) { seed(s); }
+	void seed(uint32_t s) { m_mt.seed(s); }
+
+	// between [l,h]
+	int irand(int l, int h) { std::uniform_int_distribution<int> d(l, h); return d(m_mt); }
+
+	uint32_t urand32() { return static_cast<uint32_t>(irand(INT32_MIN, INT32_MAX)); }
+
+	bool bit() { return irand(0, 1) == 1; }
+
+	uint8_t byte() { return static_cast<uint8_t>(urand32()); }
+
+	// between [l,h)
+	float frand(float l, float h) { std::uniform_real_distribution<float> d(l, h); return d(m_mt); }
+
+	float gaussian(float mean, float stddev) { std::normal_distribution<float> d(mean, stddev); return d(m_mt); }
+};
+
+static bool fuzz_test_encoder(
+	uint32_t source_width, uint32_t source_height, uint32_t source_chans,
+	const color_rgba* pSource_image_buffer32,
+	const uint8_t* pSource_image_buffer24,
+	uint32_t fpng_flags)
+{
+	uint32_t total_source_pixels = source_width * source_height;
+
+	mrand r;
+
+	for (uint32_t fuzz_trial = 0; fuzz_trial < 1000; fuzz_trial++)
+	{
+		r.seed(fuzz_trial);
+		srand(fuzz_trial);
+
+		uint8_vec temp_buf(total_source_pixels * source_chans);
+		memcpy(temp_buf.data(), (source_chans == 3) ? (void*)pSource_image_buffer24 : (void*)pSource_image_buffer32, total_source_pixels * source_chans);
+
+		const double rand_fract = r.frand(0.000001f, .1f);
+		const uint32_t rand_thresh = (uint32_t)((double)RAND_MAX * rand_fract);
+
+		if (r.frand(0.0f, 1.0f) < .05f)
+		{
+			uint32_t dst_ofs = 0;
+			uint32_t total_runs = 0;
+			while (dst_ofs < temp_buf.size())
+			{
+				uint32_t bytes_left = (uint32_t)temp_buf.size() - dst_ofs;
+				uint32_t run_size = r.irand(1, minimum<uint32_t>(bytes_left / source_chans, 32));
+				uint8_t run_lits[4] = { (uint8_t)r.irand(0, 0xFF), (uint8_t)r.irand(0, 0xFF), (uint8_t)r.irand(0, 0xFF), (uint8_t)r.irand(0, 0xFF) };
+
+				for (uint32_t i = 0; i < run_size; i++)
+				{
+					memcpy(temp_buf.data() + dst_ofs, run_lits, source_chans);
+					dst_ofs += source_chans;
+				}
+
+				total_runs++;
+			}
+
+			printf("%u, %u color fill runs\n", fuzz_trial, total_runs);
+		}
+		else if (r.frand(0.0f, 1.0f) < .05f)
+		{
+			uint32_t dst_ofs = 0;
+			uint32_t total_runs = 0;
+			while (dst_ofs < temp_buf.size())
+			{
+				uint32_t bytes_left = (uint32_t)temp_buf.size() - dst_ofs;
+				uint32_t run_size = r.irand(1, minimum<uint32_t>(bytes_left / source_chans, 32));
+				uint8_t run_lits[4] = { (uint8_t)r.irand(0, 0xFF), (uint8_t)r.irand(0, 0xFF), (uint8_t)r.irand(0, 0xFF), (uint8_t)r.irand(0, 0xFF) };
+
+				if (r.frand(0.0f, 1.0f) > .8f)
+				{
+					for (uint32_t i = 0; i < run_size; i++)
+					{
+						for (uint32_t j = 0; j < source_chans; j++)
+							temp_buf[dst_ofs + j] ^= run_lits[j];
+
+						dst_ofs += source_chans;
+					}
+				}
+				else
+				{
+					dst_ofs += run_size * source_chans;
+				}
+
+				total_runs++;
+			}
+
+			printf("%u, %u color corrupt runs\n", fuzz_trial, total_runs);
+		}
+		else if (r.frand(0.0f, 1.0f) < .05f)
+		{
+			uint32_t dst_ofs = 0;
+			uint32_t total_runs = 0;
+			while (dst_ofs < temp_buf.size())
+			{
+				uint32_t bytes_left = (uint32_t)temp_buf.size() - dst_ofs;
+				uint32_t run_size = r.irand(1, minimum<uint32_t>(bytes_left, 258));
+				uint32_t run_lit = r.irand(0, 0xFF);
+
+				memset(temp_buf.data() + dst_ofs, run_lit, run_size);
+
+				dst_ofs += run_size;
+
+				total_runs++;
+			}
+
+			printf("%u, %u fill runs\n", fuzz_trial, total_runs);
+		}
+		else if (r.frand(0.0f, 1.0f) < .15f)
+		{
+			uint32_t dst_ofs = 0;
+			uint32_t total_runs = 0;
+			while (dst_ofs < temp_buf.size())
+			{
+				uint32_t bytes_left = (uint32_t)temp_buf.size() - dst_ofs;
+				uint32_t run_size = r.irand(1, minimum<uint32_t>(bytes_left, 32));
+
+				if (r.frand(0.0f, 1.0f) > .1f)
+				{
+					uint32_t run_lit = r.irand(0, 0xFF);
+
+					for (uint32_t i = 0; i < run_size; i++)
+						temp_buf[dst_ofs + i] ^= run_lit;
+				}
+
+				dst_ofs += run_size;
+
+				total_runs++;
+			}
+
+			printf("%u, %u corrupt runs\n", fuzz_trial, total_runs);
+		}
+		else if (r.frand(0.0f, 1.0f) < .005f)
+		{
+			for (uint32_t i = 0; i < temp_buf.size(); i++)
+				temp_buf[i] = (uint8_t)rand();
+
+			printf("%u, full random\n", fuzz_trial);
+		}
+		else
+		{
+			uint32_t total_bits_flipped = 0;
+
+			for (uint32_t i = 0; i < temp_buf.size(); i++)
+			{
+				for (uint32_t j = 0; j < 8; j++)
+				{
+					if ((uint32_t)rand() <= rand_thresh)
+					{
+						temp_buf[i] ^= (1 << j);
+						total_bits_flipped++;
+					}
+				}
+			}
+
+			printf("%u, %u bits flipped\n", fuzz_trial, total_bits_flipped);
+		}
+
+		std::vector<uint8_t> fpng_file_buf;
+				
+		if (!fpng::fpng_encode_image_to_memory(temp_buf.data(), source_width, source_height, source_chans, fpng_file_buf, fpng_flags))
+		{
+			fprintf(stderr, "fpng_encode_image_to_memory() failed!\n");
+			return false;
+		}
+
+		printf("fpng size: %u\n", (uint32_t)fpng_file_buf.size());
+
+#if 0
+		char filename[256];
+		sprintf(filename, "test%u.png", fuzz_trial);
+		if (!write_data_to_file(filename, fpng_file_buf.data(), fpng_file_buf.size()))
+		{
+			fprintf(stderr, "Failed writing file\n");
+			return false;
+		}
+#endif
+
+		unsigned int lodepng_decoded_w = 0, lodepng_decoded_h = 0;
+		unsigned char* lodepng_decoded_buffer = nullptr;
+		int error = lodepng_decode_memory(&lodepng_decoded_buffer, &lodepng_decoded_w, &lodepng_decoded_h, (unsigned char*)fpng_file_buf.data(), fpng_file_buf.size(), LCT_RGBA, 8);
+		if (error != 0)
+		{
+			fprintf(stderr, "lodepng failed decompressing FPNG's output PNG file!\n");
+			return false;
+		}
+
+		for (uint32_t i = 0; i < total_source_pixels; i++)
+		{
+			bool equal = true;
+			for (uint32_t j = 0; j < source_chans; j++)
+			{
+				if (lodepng_decoded_buffer[i * 4 + j] != temp_buf[i * source_chans + j])
+					equal = false;
+			}
+
+			if (!equal)
+			{
+				fprintf(stderr, "lodepng verification failure!\n");
+				return false;
+			}
+		}
+
+		{
+			std::vector<uint8_t> fpngd_decode_buffer;
+			uint32_t channels_in_file;
+			uint32_t decoded_width, decoded_height;
+
+			uint32_t desired_chans = 4;// source_chans;
+			int res = fpng::fpng_decode_memory(fpng_file_buf.data(), (uint32_t)fpng_file_buf.size(), fpngd_decode_buffer, decoded_width, decoded_height, channels_in_file, desired_chans);
+			if (res != 0)
+			{
+				fprintf(stderr, "fpng::fpng_decode() failed with error %i!\n", res);
+				return false;
+			}
+
+			if ((decoded_width != source_width) || (decoded_height != source_height))
+			{
+				fprintf(stderr, "fpng::fpng_decode() returned an invalid image\n");
+				return false;
+			}
+
+			const uint32_t chans_to_verify = minimum(source_chans, desired_chans);
+			for (uint32_t i = 0; i < total_source_pixels; i++)
+			{
+				bool equal = true;
+								
+				for (uint32_t j = 0; j < chans_to_verify; j++)
+				{
+					if (fpngd_decode_buffer[i * desired_chans + j] != temp_buf[i * source_chans + j])
+						equal = false;
+				}
+
+				if ((desired_chans == 4) && (source_chans == 3))
+				{
+					if (fpngd_decode_buffer[i * desired_chans + 3] != 0xFF)
+						equal = false;
+				}
+
+				if (!equal)
+				{
+					fprintf(stderr, "fpng verification failure!\n");
+					return false;
+				}
+			}
+		}
+
+		free(lodepng_decoded_buffer);
+	}
+
+	return true;
+}
+
+static int fuzz_test_encoder2(uint32_t fpng_flags)
+{
+	mrand r;
+
+	const uint32_t MAX_IMAGE_DIM = 8193;
+
+	for (uint32_t trial = 0; trial < 1000; trial++)
+	{
+		uint32_t width = r.irand(1, MAX_IMAGE_DIM + 1);
+		uint32_t height = r.irand(1, MAX_IMAGE_DIM + 1);
+		uint32_t num_chans = r.bit() ? 4 : 3;
+		uint32_t total_pixels = width * height;
+		uint32_t total_bytes = width * height * num_chans;
+
+		std::vector<uint8_t> temp_buf(total_bytes);
+
+		uint8_t* pDst = temp_buf.data();
+		for (uint32_t i = 0; i < total_pixels; i++)
+		//for (uint32_t i = 0; i < 1; i++)
+		{
+			uint32_t p = r.urand32();
+			
+			*pDst++ = (uint8_t)p;
+			*pDst++ = (uint8_t)(p >> 8);
+			*pDst++ = (uint8_t)(p >> 16);
+
+			if (num_chans == 4)
+				*pDst++ = (uint8_t)(p >> 24);
+		}
+
+		printf("Testing %ux%u %u\n", width, height, num_chans);
+
+		std::vector<uint8_t> fpng_file_buf;
+
+		if (!fpng::fpng_encode_image_to_memory(temp_buf.data(), width, height, num_chans, fpng_file_buf, fpng_flags))
+		{
+			fprintf(stderr, "fpng_encode_image_to_memory() failed!\n");
+			return EXIT_FAILURE;
+		}
+
+		printf("fpng size: %u\n", (uint32_t)fpng_file_buf.size());
+
+		std::vector<uint8_t> decomp_buf;
+		uint32_t dec_width, dec_height, dec_chans;
+		int res = fpng::fpng_decode_memory(fpng_file_buf.data(), (uint32_t)fpng_file_buf.size(), decomp_buf, dec_width, dec_height, dec_chans, num_chans);
+		if (res != fpng::FPNG_DECODE_SUCCESS)
+		{
+			fprintf(stderr, "fpng::fpng_decode_memory() failed!\n");
+			return EXIT_FAILURE;
+		}
+
+		if ((dec_width != width) || (dec_height != height) || (dec_chans != num_chans))
+		{
+			fprintf(stderr, "fpng::fpng_decode_memory() returned an invalid image!\n");
+			return EXIT_FAILURE;
+		}
+
+		if (memcmp(decomp_buf.data(), temp_buf.data(), dec_width * dec_height * dec_chans) != 0)
+		{
+			fprintf(stderr, "Decoded image failed verification\n");
+			return EXIT_FAILURE;
+		}
+	}
+
+	return EXIT_SUCCESS;
+}
+
 int main(int arg_c, char **arg_v)
 {
 	if (arg_c < 2)
 	{
-		printf("Usage: fpng_test filename\n");
+		printf("Usage: fpng_test [filename.png] <alpha_filename.png>\n");
+		printf("Loads image and compresses it with fpng, lodepng, stb_image_write and QOI. Wrotes fpng.png, lodepng.png, stbi.png, and qoi.qoi.\n");
+		printf("Also decompresses the FPNG compressed file with several decompressors (lodepng, stb_image and fpng) and validates the decompressed data against the original source image.\n");
+		printf("\nOptions:\n");
+		printf("-s: 2 pass compression\n");
+		printf("-u: Use uncompressed Deflate blocks\n");
+		printf("-c: Write comma seperated values to stdout\n");
+		printf("-e: Fuzz encoder/decoder by randomly modifying an input image's pixels\n");
+		printf("-f: Decompress specified PNG image using FPNG, then exit\n");
+		printf("-a: Swizzle input image's green to alpha, for testing 32bpp correlation alpha\n");
 		return EXIT_FAILURE;
 	}
 
 	const char* pFilename = nullptr;
+	const char* pAlpha_filename = nullptr;
 	bool csv_flag = false;
+	bool slower_encoding = false;
+	bool force_uncompressed = false;
+	bool fuzz_encoder = false;
+	bool fuzz_encoder2 = false;
+	bool fuzz_decoder = false;
+	bool swizzle_green_to_alpha = false;
+
 	for (int i = 1; i < arg_c; i++)
 	{
 		const char* pArg = arg_v[i];
 		if (pArg[0] == '-')
 		{
-			if (pArg[1] == 'c')
+			if (pArg[1] == 'u')
+			{
+				force_uncompressed = true;
+			}
+			else if (pArg[1] == 's')
+			{
+				slower_encoding = true;
+			}
+			else if (pArg[1] == 'c')
 			{
 				csv_flag = true;
+			}
+			else if (pArg[1] == 'e')
+			{
+				fuzz_encoder = true;
+			}
+			else if (pArg[1] == 'E')
+			{
+				fuzz_encoder2 = true;
+			}
+			else if (pArg[1] == 'f')
+			{
+				fuzz_decoder = true;
+			}
+			else if (pArg[1] == 'a')
+			{
+				swizzle_green_to_alpha = true;
 			}
 			else
 			{
@@ -291,17 +738,34 @@ int main(int arg_c, char **arg_v)
 		}
 		else
 		{
-			if (pFilename)
+			if ((pFilename) && (pAlpha_filename))
 			{
-				fprintf(stderr, "Too many filenames: %s\n", pArg);
+				fprintf(stderr, "Too many filenames\n");
 				return EXIT_FAILURE;
 			}
-			pFilename = pArg;
+			
+			if (pFilename)
+				pAlpha_filename = pArg;
+			else
+				pFilename = pArg;
 		}
 	}
 
+	uint32_t fpng_flags = 0;
+	if (slower_encoding)
+		fpng_flags |= fpng::FPNG_ENCODE_SLOWER;
+	if (force_uncompressed)
+		fpng_flags |= fpng::FPNG_FORCE_UNCOMPRESSED;
+
+	if (fuzz_encoder2)
+		return fuzz_test_encoder2(fpng_flags);
+
 	if (!csv_flag)
+	{
 		printf("Filename: %s\n", pFilename);
+		if (pAlpha_filename)
+			printf("Alpha filename: %s\n", pFilename);
+	}
 
 	uint8_vec source_file_data;
 	if (!read_file_to_vec(pFilename, source_file_data))
@@ -310,13 +774,66 @@ int main(int arg_c, char **arg_v)
 		return EXIT_FAILURE;
 	}
 
-	unsigned int source_width = 0, source_height = 0;
-	unsigned char* pSource_image_buffer = nullptr;
+	if (fuzz_decoder)
+	{
+		std::vector<uint8_t> fpngd_decode_buffer;
+		uint32_t channels_in_file;
+		uint32_t decoded_width, decoded_height;
+
+		int res = fpng::fpng_decode_memory(source_file_data.data(), (uint32_t)source_file_data.size(), fpngd_decode_buffer, decoded_width, decoded_height, channels_in_file, 3);
+		if (res != 0)
+		{
+			fprintf(stderr, "fpng::fpng_decode() failed with error %i!\n", res);
+			return EXIT_FAILURE;
+		}
+
+		if (lodepng_encode_file("out.png", fpngd_decode_buffer.data(), decoded_width, decoded_height, (channels_in_file == 4) ? LCT_RGBA : LCT_RGB, 8) != 0)
+		{
+			fprintf(stderr, "lodepng_encode_file() failed with error %i!\n", res);
+			return EXIT_FAILURE;
+		}
+
+		printf("Wrote out.png %ux%u %u\n", decoded_width, decoded_height, channels_in_file);
+
+		return EXIT_SUCCESS;
+	}
+		
+	uint32_t source_width = 0, source_height = 0;
+	uint8_t* pSource_image_buffer = nullptr;
 	unsigned error = lodepng_decode_memory(&pSource_image_buffer, &source_width, &source_height, source_file_data.data(), source_file_data.size(), LCT_RGBA, 8);
 	if (error != 0)
 	{
 		fprintf(stderr, "Failed unpacking source file \"%s\"\n", pFilename);
 		return EXIT_FAILURE;
+	}
+
+	if (pAlpha_filename)
+	{
+		uint32_t alpha_source_width = 0, alpha_source_height = 0;
+		uint8_t* pAlpha_source_image_buffer = nullptr;
+		error = lodepng_decode_file(&pAlpha_source_image_buffer, &alpha_source_width, &alpha_source_height, pAlpha_filename, LCT_RGBA, 8);
+		if (error != 0)
+		{
+			fprintf(stderr, "Failed unpacking alpha source file \"%s\"\n", pAlpha_filename);
+			return EXIT_FAILURE;
+		}
+		if (!csv_flag)
+			printf("Alpha Dimensions: %ux%u\n", alpha_source_width, alpha_source_height);
+		for (uint32_t y = 0; y < minimum(alpha_source_height, source_height); y++)
+		{
+			for (uint32_t x = 0; x < minimum(alpha_source_width, source_width); x++)
+			{
+				uint32_t a = pAlpha_source_image_buffer[(x + y * alpha_source_width) * 4 + 1];
+				pSource_image_buffer[(x + y * source_width) * 4 + 3] = a;
+			}
+		}
+		free(pAlpha_source_image_buffer);
+	}
+	else if (swizzle_green_to_alpha)
+	{
+		for (uint32_t y = 0; y < source_height; y++)
+			for (uint32_t x = 0; x < source_width; x++)
+				pSource_image_buffer[(x + y * source_width) * 4 + 3] = pSource_image_buffer[(x + y * source_width) * 4 + 1];
 	}
 
 	const color_rgba* pSource_pixels32 = (const color_rgba*)pSource_image_buffer;
@@ -345,18 +862,30 @@ int main(int arg_c, char **arg_v)
 	}
 
 	const uint8_t* pSource_pixels24 = source_image_buffer24.data();
-
-	const uint32_t NUM_TIMES_TO_ENCODE = 3;
+	
+	const uint32_t NUM_TIMES_TO_ENCODE = csv_flag ? 3 : 1;
+	const uint32_t NUM_TIMES_TO_DECODE = 5;
 	interval_timer tm;
 
-	// FPNG
+	if (!csv_flag)
+		printf("** Encoding:\n");
+
+	// Compress with FPNG
+	if (fuzz_encoder)
+	{
+		bool status = fuzz_test_encoder(source_width, source_height, source_chans, pSource_pixels32, pSource_pixels24, fpng_flags);
+		if (!status)
+			fprintf(stderr, "fuzz_test_encoder() failed!\n");
+
+		return status ? EXIT_SUCCESS : EXIT_FAILURE;
+	}
 
 	std::vector<uint8_t> fpng_file_buf;
 	double fpng_best_time = 1e+9f;
 	for (uint32_t i = 0; i < NUM_TIMES_TO_ENCODE; i++)
 	{
 		tm.start();
-		if (!fpng::fpng_encode_image_to_memory((source_chans == 3) ? (const void *)pSource_pixels24 : (const void*)pSource_pixels32, source_width, source_height, source_chans, false, fpng_file_buf))
+		if (!fpng::fpng_encode_image_to_memory((source_chans == 3) ? (const void *)pSource_pixels24 : (const void*)pSource_pixels32, source_width, source_height, source_chans, fpng_file_buf, fpng_flags))
 		{
 			fprintf(stderr, "fpng_encode_image_to_memory() failed!\n");
 			return EXIT_FAILURE;
@@ -365,19 +894,145 @@ int main(int arg_c, char **arg_v)
 	}
 
 	if (!csv_flag)
-		printf("FPNG: %f secs, %u bytes, %f MB\n", fpng_best_time, (uint32_t)fpng_file_buf.size(), fpng_file_buf.size() / (1024.0f * 1024.0f));
+		printf("FPNG:    %4.6f secs, %u bytes, %4.3f MB, %4.3f MP/sec\n", fpng_best_time, (uint32_t)fpng_file_buf.size(), fpng_file_buf.size() / (1024.0f * 1024.0f), total_source_pixels / (1024.0f * 1024.0f) / fpng_best_time);
 
-	if (!write_data_to_file("fpng.png", fpng_file_buf.data(), fpng_file_buf.size()))
+	if (!csv_flag)
 	{
-		fprintf(stderr, "Failed writing to file fpng.png\n");
-		return EXIT_FAILURE;
+		if (!write_data_to_file("fpng.png", fpng_file_buf.data(), fpng_file_buf.size()))
+		{
+			fprintf(stderr, "Failed writing to file fpng.png\n");
+			return EXIT_FAILURE;
+		}
+
+#if 0
+		std::vector<uint8_t> out;
+		uint32_t width, height, channels_in_file;
+		int res = fpng::fpng_decode_file("fpng.png", out, width, height, channels_in_file, 4);
+		if (res != fpng::FPNG_DECODE_SUCCESS)
+		{
+			fprintf(stderr, "fpng::fpng_decode_file() failed!\n");
+			return EXIT_FAILURE;
+		}
+#endif
+	}
+	
+	double fpng_decode_time = 0.0f, lodepng_decode_time = 0.0f, stbi_decode_time = 0.0f, qoi_decode_time = 0.0f;
+
+	// Decode the file using our decompressor
+	{
+		std::vector<uint8_t> fpngd_decode_buffer;
+		uint32_t channels_in_file;
+		uint32_t decoded_width, decoded_height;
+
+		fpng_decode_time = 1e+9f;
+
+		int res;
+		for (uint32_t i = 0; i < NUM_TIMES_TO_DECODE; i++)
+		{
+			fpngd_decode_buffer.clear();
+						
+			tm.start();
+			res = fpng::fpng_decode_memory(fpng_file_buf.data(), (uint32_t)fpng_file_buf.size(), fpngd_decode_buffer, decoded_width, decoded_height, channels_in_file, 4);
+			if (res != 0)
+				break;
+			fpng_decode_time = minimum(tm.get_elapsed_secs(), fpng_decode_time);
+		}
+
+		if (res != 0)
+		{
+			fprintf(stderr, "fpng::fpng_decode() failed with error %i!\n", res);
+			return EXIT_FAILURE;
+		}
+
+		if ((decoded_width != source_width) || (decoded_height != source_height))
+		{
+			fprintf(stderr, "fpng::fpng_decode() returned an invalid image\n");
+			return EXIT_FAILURE;
+		}
+
+		if (memcmp(fpngd_decode_buffer.data(), pSource_pixels32, total_source_pixels * 4) != 0)
+		{
+			fprintf(stderr, "FPNG decode verification failed (using FPNG)!\n");
+			return EXIT_FAILURE;
+		}
+	}
+
+	// Test 4->3 conversion in FPNG decoder
+	if (source_chans == 4)
+	{
+		std::vector<uint8_t> fpngd_decode_buffer2;
+		uint32_t channels_in_file2;
+		uint32_t decoded_width2, decoded_height2;
+
+		int res = fpng::fpng_decode_memory(fpng_file_buf.data(), (uint32_t)fpng_file_buf.size(), fpngd_decode_buffer2, decoded_width2, decoded_height2, channels_in_file2, 3);
+		if (res != 0)
+		{
+			fprintf(stderr, "fpng::fpng_decode() failed with error %i!\n", res);
+			return EXIT_FAILURE;
+		}
+
+		if ((channels_in_file2 != 4) || (decoded_width2 != source_width) || (decoded_height2 != source_height))
+		{
+			fprintf(stderr, "fpng::fpng_decode() returned an invalid image\n");
+			return EXIT_FAILURE;
+		}
+
+		if (memcmp(fpngd_decode_buffer2.data(), pSource_pixels24, total_source_pixels * 3) != 0)
+		{
+			fprintf(stderr, "FPNG decode verification failed (using FPNG)!\n");
+			return EXIT_FAILURE;
+		}
+	}
+
+	// Test 3->4 conversion in FPNG decoder
+	if (source_chans == 3)
+	{
+		std::vector<uint8_t> fpngd_decode_buffer2;
+		uint32_t channels_in_file2;
+		uint32_t decoded_width2, decoded_height2;
+
+		int res = fpng::fpng_decode_memory(fpng_file_buf.data(), (uint32_t)fpng_file_buf.size(), fpngd_decode_buffer2, decoded_width2, decoded_height2, channels_in_file2, 4);
+		if (res != 0)
+		{
+			fprintf(stderr, "fpng::fpng_decode() failed with error %i!\n", res);
+			return EXIT_FAILURE;
+		}
+
+		if ((channels_in_file2 != 3) || (decoded_width2 != source_width) || (decoded_height2 != source_height))
+		{
+			fprintf(stderr, "fpng::fpng_decode() returned an invalid image\n");
+			return EXIT_FAILURE;
+		}
+
+		if (memcmp(fpngd_decode_buffer2.data(), pSource_pixels32, total_source_pixels * 4) != 0)
+		{
+			fprintf(stderr, "FPNG decode verification failed (using FPNG)!\n");
+			return EXIT_FAILURE;
+		}
 	}
 
 	// Verify FPNG's output data using lodepng
 	{
-		unsigned int lodepng_decoded_w = 0, lodepng_decoded_h = 0;
-		unsigned char* lodepng_decoded_buffer = nullptr;
-		error = lodepng_decode_memory(&lodepng_decoded_buffer, &lodepng_decoded_w, &lodepng_decoded_h, (unsigned char*)fpng_file_buf.data(), fpng_file_buf.size(), LCT_RGBA, 8);
+		uint32_t lodepng_decoded_w = 0, lodepng_decoded_h = 0;
+		uint8_t* lodepng_decoded_buffer = nullptr;
+		
+		lodepng_decode_time = 1e+9f;
+
+		for (uint32_t i = 0; i < NUM_TIMES_TO_DECODE; i++)
+		{
+			if (lodepng_decoded_buffer)
+			{
+				free(lodepng_decoded_buffer);
+				lodepng_decoded_buffer = nullptr;
+			}
+
+			tm.start();
+			error = lodepng_decode_memory(&lodepng_decoded_buffer, &lodepng_decoded_w, &lodepng_decoded_h, (uint8_t*)fpng_file_buf.data(), fpng_file_buf.size(), LCT_RGBA, 8);
+			if (error != 0)
+				break;
+			lodepng_decode_time = minimum(tm.get_elapsed_secs(), lodepng_decode_time);
+		}
+				
 		if (error != 0)
 		{
 			fprintf(stderr, "lodepng failed decompressing FPNG's output PNG file!\n");
@@ -395,7 +1050,26 @@ int main(int arg_c, char **arg_v)
 	// Verify FPNG's output data using stb_image.h
 	{
 		int x, y, c;
-		void* p = stbi_load_from_memory(fpng_file_buf.data(), (int)fpng_file_buf.size(), &x, &y, &c, 4);
+		
+		void* p = nullptr;
+
+		stbi_decode_time = 1e+9f;
+		for (uint32_t i = 0; i < NUM_TIMES_TO_DECODE; i++)
+		{
+			if (p)
+			{
+				free(p);
+				p = nullptr;
+			}
+
+			tm.start();
+			p = stbi_load_from_memory(fpng_file_buf.data(), (int)fpng_file_buf.size(), &x, &y, &c, 4);
+			if (!p)
+				break;
+			
+			stbi_decode_time = minimum(stbi_decode_time, tm.get_elapsed_secs());
+		}
+
 		if (!p)
 		{
 			fprintf(stderr, "stb_image.h failed decompressing FPNG's output PNG file!\n");
@@ -409,8 +1083,8 @@ int main(int arg_c, char **arg_v)
 		}
 		free(p);
 	}
-
-	// lodepng
+		
+	// Compress with lodepng
 
 	uint8_vec lodepng_file_buf;
 	double lodepng_best_time = 1e+9f;
@@ -430,12 +1104,15 @@ int main(int arg_c, char **arg_v)
 	}
 	
 	if (!csv_flag)
-		printf("lodepng: %f secs, %u bytes, %f MB\n", lodepng_best_time, (uint32_t)lodepng_file_buf.size(), (double)lodepng_file_buf.size() / (1024.0f * 1024.0f));
+		printf("lodepng: %4.6f secs, %u bytes, %4.3f MB, %4.3f MP/sec\n", lodepng_best_time, (uint32_t)lodepng_file_buf.size(), (double)lodepng_file_buf.size() / (1024.0f * 1024.0f), total_source_pixels / (1024.0f * 1024.0f) / lodepng_best_time);
 
-	if (!write_data_to_file("lodepng.png", lodepng_file_buf.data(), lodepng_file_buf.size()))
+	if (!csv_flag)
 	{
-		fprintf(stderr, "Failed writing to file lodepng.png\n");
-		return EXIT_FAILURE;
+		if (!write_data_to_file("lodepng.png", lodepng_file_buf.data(), lodepng_file_buf.size()))
+		{
+			fprintf(stderr, "Failed writing to file lodepng.png\n");
+			return EXIT_FAILURE;
+		}
 	}
 
 	// stb_image_write.h
@@ -460,15 +1137,18 @@ int main(int arg_c, char **arg_v)
 	}
 
 	if (!csv_flag)
-		printf("stbi: %f secs, %u bytes, %f MB\n", stbi_best_time, (uint32_t)stbi_file_buf.size(), (double)stbi_file_buf.size() / (1024.0f * 1024.0f));
-
-	if (!write_data_to_file("stbi.png", stbi_file_buf.data(), stbi_file_buf.size()))
+		printf("stbi:    %4.6f secs, %u bytes, %4.3f MB, %4.3f MP/s\n", stbi_best_time, (uint32_t)stbi_file_buf.size(), (double)stbi_file_buf.size() / (1024.0f * 1024.0f), (total_source_pixels / (1024.0f * 1024.0f)) / stbi_best_time);
+	
+	if (!csv_flag)
 	{
-		fprintf(stderr, "Failed writing to file stbi.png\n");
-		return EXIT_FAILURE;
+		if (!write_data_to_file("stbi.png", stbi_file_buf.data(), stbi_file_buf.size()))
+		{
+			fprintf(stderr, "Failed writing to file stbi.png\n");
+			return EXIT_FAILURE;
+		}
 	}
 
-	// QOI
+	// Compress with QOI
 	qoi_desc qdesc;
 	qdesc.channels = source_chans;
 	qdesc.width = source_width;
@@ -491,41 +1171,62 @@ int main(int arg_c, char **arg_v)
 		qoi_best_time = minimum(qoi_best_time, tm.get_elapsed_secs());
 	}
 
-	if (!write_data_to_file("qoi.qoi", pQOI_data, qoi_len))
+	if (!csv_flag)
 	{
-		fprintf(stderr, "Failed writing to file qoi.qoi\n");
-		return EXIT_FAILURE;
+		if (!write_data_to_file("qoi.qoi", pQOI_data, qoi_len))
+		{
+			fprintf(stderr, "Failed writing to file qoi.qoi\n");
+			return EXIT_FAILURE;
+		}
 	}
 
 	if (!csv_flag)
-		printf("qoi: %f secs, %i bytes, %f MB\n", qoi_best_time, qoi_len, (double)qoi_len / (1024.0f * 1024.0f));
+		printf("qoi:     %4.6f secs, %i bytes, %4.3f MB, %4.3f MP/sec\n", qoi_best_time, qoi_len, (double)qoi_len / (1024.0f * 1024.0f), (total_source_pixels / (1024.0f * 1024.0f)) / qoi_best_time);
 		
 	// Validate QOI's output file
 	{
 		qoi_desc qddesc;
+		tm.start();
 		void* pQOI_decomp_data = qoi_decode(pQOI_data, qoi_len, &qddesc, 4);
-
+		qoi_decode_time = tm.get_elapsed_secs();
+				
 		if (memcmp(pQOI_decomp_data, pSource_pixels32, total_source_pixels * 4) != 0)
 		{
 			fprintf(stderr, "QOI verification failure!\n");
 			return EXIT_FAILURE;
 		}
 		free(pQOI_decomp_data);
-		pQOI_decomp_data = nullptr;
+	}
+
+	free(pQOI_data);
+	pQOI_data = nullptr;
+
+	if (!csv_flag)
+	{
+		printf("** Decoding:\n");
+		printf("FPNG:    %3.6f secs, %4.3f MP/s\n", fpng_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / fpng_decode_time);
+		printf("lodepng: %3.6f secs, %4.3f MP/s\n", lodepng_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / lodepng_decode_time);
+		printf("stbi:    %3.6f secs, %4.3f MP/s\n", stbi_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / stbi_decode_time);
+		printf("qoi:     %3.6f secs, %4.3f MP/s\n", qoi_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / qoi_decode_time);
 	}
 
 	if (csv_flag)
 	{
 		const double MB = 1024.0f * 1024.0f;
 
-		printf("%s, %u, %u, %u,    %f, %u, %f,   %f, %u, %f,   %f, %u, %f,   %f, %u, %f\n",
+		const double source_megapixels = total_source_pixels / (1024.0f * 1024.0f);
+
+		printf("%s, %u, %u, %u,    %f, %f, %f, %4.1f, %4.1f,    %f, %f, %f, %4.1f, %4.1f,    %f, %f, %f, %4.1f, %4.1f,    %f, %f, %f, %4.1f, %4.1f\n",
 			pFilename, source_width, source_height, source_chans,
-			qoi_best_time, (uint32_t)qoi_len, (double)qoi_len / MB,
-			fpng_best_time, (uint32_t)fpng_file_buf.size(), (double)fpng_file_buf.size() / MB,
-			lodepng_best_time, (uint32_t)lodepng_file_buf.size(), (double)lodepng_file_buf.size() / MB,
-			stbi_best_time, (uint32_t)stbi_file_buf.size(), (double)stbi_file_buf.size() / MB
+			qoi_best_time, (double)qoi_len / MB, qoi_decode_time, source_megapixels / qoi_best_time, source_megapixels / qoi_decode_time,
+			fpng_best_time, (double)fpng_file_buf.size() / MB, fpng_decode_time, source_megapixels / fpng_best_time, source_megapixels / fpng_decode_time,
+			lodepng_best_time, (double)lodepng_file_buf.size() / MB, lodepng_decode_time, source_megapixels / lodepng_best_time, source_megapixels / lodepng_decode_time,
+			stbi_best_time, (double)stbi_file_buf.size() / MB, stbi_decode_time, source_megapixels / stbi_best_time, source_megapixels / stbi_decode_time
 			);
 	}
+
+	free(pSource_image_buffer);
+	pSource_image_buffer = nullptr;
 
 	return EXIT_SUCCESS;
 }
