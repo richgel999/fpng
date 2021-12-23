@@ -122,9 +122,9 @@ The return code will be `fpng::FPNG_DECODE_SUCCESS` on success, `fpng::FPNG_DECO
 
 ## Fuzzing
 
-fpng's encoder (and decoder) has been fuzzed with random inputs and random image dimensions. The -e and -E options are used for this sort of fuzzing.
+fpng's encoder and decoder has been fuzzed to check for failures or crashes with random/corrupted input images and random image dimensions. The -e and -E options are used for this sort of fuzzing.
 
-The fpng decoder's parser has been fuzzed with [zzuf](http://caca.zoy.org/wiki/zzuf). For more efficient decoder fuzzing (and more coverage), set `FPNG_DISABLE_DECODE_CRC32_CHECKS` to 1 in fpng.cpp before fuzzing. The -f option is used for fuzzing, like this:
+The fpng decoder's parser has been fuzzed to check for crashes with [zzuf](http://caca.zoy.org/wiki/zzuf). For more efficient decoder fuzzing (and more coverage), set `FPNG_DISABLE_DECODE_CRC32_CHECKS` to 1 in fpng.cpp before fuzzing. The -f option is used for fuzzing, like this:
 
 ```
 zzuf -s 1:1000000 ./fpng_test -f fpng.png
