@@ -11,6 +11,9 @@
 #include <assert.h>
 #include <string.h>
 
+#ifdef _MSC_VER
+#pragma warning (disable:4127) // conditional expression is constant
+#endif
 // This module relies on the fast CRC-32 function in Crc32.cpp/.h.
 #include "Crc32.h"
 
@@ -18,23 +21,34 @@
 #include <stdio.h>
 #endif
 
-#ifndef __LITTLE_ENDIAN
-#define __LITTLE_ENDIAN 1234
-#endif
-#ifndef __BIG_ENDIAN
-#define __BIG_ENDIAN 4321
-#endif
-
 #if defined(_MSC_VER) || defined(__MINGW32__)
+	#ifndef __LITTLE_ENDIAN
+	#define __LITTLE_ENDIAN 1234
+	#endif
+	#ifndef __BIG_ENDIAN
+	#define __BIG_ENDIAN 4321
+	#endif
+
 	// Assume little endian on Windows.
 	#define __BYTE_ORDER __LITTLE_ENDIAN
+#elif defined(__APPLE__)
+	#define __BYTE_ORDER __BYTE_ORDER__
+	#define __LITTLE_ENDIAN __LITTLE_ENDIAN__
+	#define __BIG_ENDIAN __BIG_ENDIAN__
 #else
 	// for __BYTE_ORDER (__LITTLE_ENDIAN or __BIG_ENDIAN)
 	#include <sys/param.h>
 
-	#if !defined(__BYTE_ORDER)
-	#error __BYTE_ORDER undefined. Compile with -D__BYTE_ORDER=1234 for little endian or -D__BYTE_ORDER=4321 for big endian.
+	#ifndef __LITTLE_ENDIAN
+	#define __LITTLE_ENDIAN 1234
 	#endif
+	#ifndef __BIG_ENDIAN
+	#define __BIG_ENDIAN 4321
+	#endif
+#endif
+
+#if !defined(__BYTE_ORDER)
+	#error __BYTE_ORDER undefined. Compile with -D__BYTE_ORDER=1234 for little endian or -D__BYTE_ORDER=4321 for big endian.
 #endif
 
 // Allow the disabling of the chunk data CRC32 checks, for fuzz testing of the decoder
@@ -1546,7 +1560,7 @@ do_literals:
 				continue;
 			}
 
-			uint32_t rep_len, rep_code_size;
+			uint32_t rep_len = 0, rep_code_size = 0;
 
 			switch (sym)
 			{
@@ -1579,7 +1593,7 @@ do_literals:
 				return false;
 
 			for (; rep_len; rep_len--)
-				code_sizes[cur_code++] = rep_code_size;
+				code_sizes[cur_code++] = (uint8_t)rep_code_size;
 		}
 
 		uint8_t lit_codesizes[DEFL_MAX_HUFF_SYMBOLS_0];
