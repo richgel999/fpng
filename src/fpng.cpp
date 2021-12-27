@@ -168,7 +168,7 @@ namespace fpng
 	static const uint8_t g_dyn_huff_3[] = { 120, 1, 229, 194, 3, 176, 37, 75, 148, 5, 208, 189, 79, 102, 86, 213, 197, 99, 187, 231, 143, 109, 219, 182, 109, 219, 182, 109, 219, 182, 109, 219,
 		198, 31, 207, 159, 118, 63, 94, 84, 85, 102, 158, 61, 21, 241, 34, 58, 38, 198, 102, 196 };
 	const uint32_t DYN_HUFF_3_BITBUF = 0x2, DYN_HUFF_3_BITBUF_SIZE = 3;
-
+		
 	static const struct { uint8_t m_code_size; uint16_t m_code; } g_dyn_huff_3_codes[288] =
 	{
 		{3,0x0},{3,0x4},{4,0x6},{5,0x1},{5,0x11},{5,0x9},{6,0xD},{6,0x2D},{6,0x1D},{7,0x33},{7,0x73},{7,0xB},{7,0x4B},{8,0x3B},{8,0xBB},{8,0x7B},
@@ -591,6 +591,8 @@ do { \
 			*pDst_codes++ = 1 | (filter_lit << 8);
 			lit_freq[filter_lit]++;
 
+			uint32_t prev_lits;
+
 			{
 				uint32_t lits = READ_LE32(pSrc + src_ofs) & 0xFFFFFF;
 
@@ -601,23 +603,22 @@ do { \
 				lit_freq[lits >> 16]++;
 
 				src_ofs += 3;
+
+				prev_lits = lits;
 			}
 
 			while (src_ofs < end_src_ofs)
 			{
 				uint32_t lits = READ_LE32(pSrc + src_ofs) & 0xFFFFFF;
 
-				const uint32_t match_ofs = src_ofs - 3;
-
-				if (lits == (READ_LE32(pSrc + match_ofs) & 0xFFFFFF))
+				if (lits == prev_lits)
 				{
 					uint32_t match_len = 3;
 					uint32_t max_match_len = minimum<int>(255, (int)(end_src_ofs - src_ofs));
 
 					while (match_len < max_match_len)
 					{
-						// could be optimized for big endian CPU's
-						if ((READ_LE32(pSrc + src_ofs + match_len) & 0xFFFFFF) != (READ_LE32(pSrc + match_ofs + match_len) & 0xFFFFFF))
+						if ((READ_LE32(pSrc + src_ofs + match_len) & 0xFFFFFF) != lits)
 							break;
 						match_len += 3;
 					}
@@ -637,6 +638,8 @@ do { \
 					lit_freq[lits & 0xFF]++;
 					lit_freq[(lits >> 8) & 0xFF]++;
 					lit_freq[lits >> 16]++;
+
+					prev_lits = lits;
 
 					src_ofs += 3;
 				}
@@ -747,6 +750,8 @@ do { \
 			const uint32_t filter_lit = pSrc[src_ofs++];
 			PUT_BITS_CZ(g_dyn_huff_3_codes[filter_lit].m_code, g_dyn_huff_3_codes[filter_lit].m_code_size);
 
+			uint32_t prev_lits;
+
 			{
 				uint32_t lits = READ_LE32(pSrc + src_ofs) & 0xFFFFFF;
 
@@ -755,6 +760,8 @@ do { \
 				PUT_BITS_CZ(g_dyn_huff_3_codes[(lits >> 16)].m_code, g_dyn_huff_3_codes[(lits >> 16)].m_code_size);
 
 				src_ofs += 3;
+			
+				prev_lits = lits;
 			}
 
 			PUT_BITS_FLUSH;
@@ -763,17 +770,14 @@ do { \
 			{
 				uint32_t lits = READ_LE32(pSrc + src_ofs) & 0xFFFFFF;
 
-				const uint32_t match_ofs = src_ofs - 3;
-
-				if (lits == (READ_LE32(pSrc + match_ofs) & 0xFFFFFF))
+				if (lits == prev_lits)
 				{
 					uint32_t match_len = 3;
 					uint32_t max_match_len = minimum<int>(255, (int)(end_src_ofs - src_ofs));
 
 					while (match_len < max_match_len)
 					{
-						// could be optimized for big endian CPU's
-						if ((READ_LE32(pSrc + src_ofs + match_len) & 0xFFFFFF) != (READ_LE32(pSrc + match_ofs + match_len) & 0xFFFFFF))
+						if ((READ_LE32(pSrc + src_ofs + match_len) & 0xFFFFFF) != lits)
 							break;
 						match_len += 3;
 					}
@@ -790,6 +794,8 @@ do { \
 					PUT_BITS_CZ(g_dyn_huff_3_codes[lits & 0xFF].m_code, g_dyn_huff_3_codes[lits & 0xFF].m_code_size);
 					PUT_BITS_CZ(g_dyn_huff_3_codes[(lits >> 8) & 0xFF].m_code, g_dyn_huff_3_codes[(lits >> 8) & 0xFF].m_code_size);
 					PUT_BITS_CZ(g_dyn_huff_3_codes[(lits >> 16)].m_code, g_dyn_huff_3_codes[(lits >> 16)].m_code_size);
+					
+					prev_lits = lits;
 
 					src_ofs += 3;
 				}
@@ -862,6 +868,7 @@ do { \
 			*pDst_codes++ = 1 | (filter_lit << 8);
 			lit_freq[filter_lit]++;
 
+			uint32_t prev_lits;
 			{
 				uint32_t lits = READ_LE32(pSrc + src_ofs);
 
@@ -873,15 +880,15 @@ do { \
 				lit_freq[lits >> 24]++;
 
 				src_ofs += 4;
+				
+				prev_lits = lits;
 			}
 
 			while (src_ofs < end_src_ofs)
 			{
 				uint32_t lits = READ_LE32(pSrc + src_ofs);
 
-				uint32_t match_ofs = src_ofs - 4;
-
-				if (lits == READ_LE32(pSrc + match_ofs))
+				if (lits == prev_lits)
 				{
 					uint32_t match_len = 4;
 					uint32_t max_match_len = minimum<int>(252, (int)(end_src_ofs - src_ofs));
@@ -889,7 +896,7 @@ do { \
 					while (match_len < max_match_len)
 					{
 						// unaligned reads
-						if (*(const uint32_t*)(pSrc + src_ofs + match_len) != *(const uint32_t*)(pSrc + match_ofs + match_len))
+						if (*(const uint32_t*)(pSrc + src_ofs + match_len) != lits)
 							break;
 						match_len += 4;
 					}
@@ -910,6 +917,8 @@ do { \
 					lit_freq[(lits >> 8) & 0xFF]++;
 					lit_freq[(lits >> 16) & 0xFF]++;
 					lit_freq[lits >> 24]++;
+					
+					prev_lits = lits;
 
 					src_ofs += 4;
 				}
@@ -1029,6 +1038,7 @@ do { \
 
 			PUT_BITS_FLUSH;
 
+			uint32_t prev_lits;
 			{
 				uint32_t lits = READ_LE32(pSrc + src_ofs);
 
@@ -1044,6 +1054,8 @@ do { \
 				PUT_BITS_CZ(g_dyn_huff_4_codes[(lits >> 24)].m_code, g_dyn_huff_4_codes[(lits >> 24)].m_code_size);
 
 				src_ofs += 4;
+				
+				prev_lits = lits;
 			}
 
 			PUT_BITS_FLUSH;
@@ -1051,18 +1063,15 @@ do { \
 			while (src_ofs < end_src_ofs)
 			{
 				uint32_t lits = READ_LE32(pSrc + src_ofs);
-
-				const uint32_t match_ofs = src_ofs - 4;
-
-				if (lits == READ_LE32(pSrc + match_ofs))
+								
+				if (lits == prev_lits)
 				{
 					uint32_t match_len = 4;
 					uint32_t max_match_len = minimum<int>(252, (int)(end_src_ofs - src_ofs));
 
 					while (match_len < max_match_len)
 					{
-						// could be optimized for big endian CPU's
-						if (READ_LE32(pSrc + src_ofs + match_len) != READ_LE32(pSrc + match_ofs + match_len))
+						if (READ_LE32(pSrc + src_ofs + match_len) != lits)
 							break;
 						match_len += 4;
 					}
@@ -1070,6 +1079,7 @@ do { \
 					uint32_t adj_match_len = match_len - 3;
 
 					const uint32_t match_code_bits = g_dyn_huff_4_codes[g_defl_len_sym[adj_match_len]].m_code_size;
+					const uint32_t len_extra_bits = g_defl_len_extra[adj_match_len];
 
 					if (match_len == 4)
 					{
@@ -1077,12 +1087,12 @@ do { \
 						uint32_t lit_bits = g_dyn_huff_4_codes[lits & 0xFF].m_code_size + g_dyn_huff_4_codes[(lits >> 8) & 0xFF].m_code_size + 
 							g_dyn_huff_4_codes[(lits >> 16) & 0xFF].m_code_size + g_dyn_huff_4_codes[(lits >> 24)].m_code_size;
 						
-						if ((match_code_bits + 1) >= lit_bits)
+						if ((match_code_bits + len_extra_bits + 1) > lit_bits)
 							goto do_literals;
 					}
 
 					PUT_BITS_CZ(g_dyn_huff_4_codes[g_defl_len_sym[adj_match_len]].m_code, match_code_bits);
-					PUT_BITS(adj_match_len & g_bitmasks[g_defl_len_extra[adj_match_len]], g_defl_len_extra[adj_match_len] + 1); // up to 6 bits, +1 for the match distance Huff code which is always 0
+					PUT_BITS(adj_match_len & g_bitmasks[g_defl_len_extra[adj_match_len]], len_extra_bits + 1); // up to 6 bits, +1 for the match distance Huff code which is always 0
 
 					src_ofs += match_len;
 				}
@@ -1101,6 +1111,8 @@ do_literals:
 					PUT_BITS_CZ(g_dyn_huff_4_codes[(lits >> 24)].m_code, g_dyn_huff_4_codes[(lits >> 24)].m_code_size);
 
 					src_ofs += 4;
+					
+					prev_lits = lits;
 				}
 
 				PUT_BITS_FLUSH;
