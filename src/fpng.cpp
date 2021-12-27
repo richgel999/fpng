@@ -2519,7 +2519,7 @@ do_literals:
 
 			for (uint32_t i = 0; i < 4; i++)
 			{
-				const uint8_t c = pChunk->m_type[0];
+				const uint8_t c = pChunk->m_type[i];
 				const bool is_upper = (c >= 65) && (c <= 90), is_lower = (c >= 97) && (c <= 122);
 				if ((!is_upper) && (!is_lower))
 					return FPNG_DECODE_FAILED_CHUNK_PARSING;
