@@ -895,8 +895,7 @@ do { \
 
 					while (match_len < max_match_len)
 					{
-						// unaligned reads
-						if (*(const uint32_t*)(pSrc + src_ofs + match_len) != lits)
+						if (READ_LE32(pSrc + src_ofs + match_len) != lits)
 							break;
 						match_len += 4;
 					}
