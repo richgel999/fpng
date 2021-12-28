@@ -14,14 +14,49 @@
 #ifdef _MSC_VER
 #pragma warning (disable:4127) // conditional expression is constant
 #endif
-// This module relies on the fast CRC-32 function in Crc32.cpp/.h.
+
+// This module relies on an external fast CRC-32 function in Crc32.cpp/.h.
 #include "Crc32.h"
 
 #ifndef FPNG_NO_STDIO
 #include <stdio.h>
 #endif
 
-#if defined(_MSC_VER) || defined(__MINGW32__)
+// Optional config macros:
+// FPNG_DISABLE_DECODE_CRC32_CHECKS - Set to 1 to disable PNG chunk CRC-32 tests, for improved fuzzing. Defaults to 0.
+// FPNG_USE_UNALIGNED_LOADS - Set to 1 to indicate it's OK to read/write unaligned 32-bit/64-bit values. Defaults to 0, unless x86/x64.
+
+// Allow the disabling of the chunk data CRC32 checks, for fuzz testing of the decoder
+#ifndef FPNG_DISABLE_DECODE_CRC32_CHECKS
+	#define FPNG_DISABLE_DECODE_CRC32_CHECKS (0)
+#endif
+
+// Detect if we're compiling on x86/x64
+#if defined(_M_IX86) || defined(_M_X64) || defined(__i386__) || defined(__i386) || defined(__i486__) || defined(__i486) || defined(i386) || defined(__ia64__) || defined(__x86_64__)
+	#define FPNG_X86_OR_X64_CPU (1)
+#else
+	#define FPNG_X86_OR_X64_CPU (0)
+#endif
+
+// Using unaligned loads and stores causes errors when using UBSan. Jam it off.
+#if defined(__has_feature)
+	#if __has_feature(undefined_behavior_sanitizer)
+		#undef FPNG_USE_UNALIGNED_LOADS
+		#define FPNG_USE_UNALIGNED_LOADS (0)
+	#endif
+#endif
+
+// Set to 0 if your platform doesn't support unaligned 32-bit/64-bit reads/writes. 
+#ifndef FPNG_USE_UNALIGNED_LOADS
+	#if FPNG_X86_OR_X64_CPU
+		// On x86/x64 we default to enabled, for a noticeable perf gain.
+		#define FPNG_USE_UNALIGNED_LOADS (1)
+	#else
+		#define FPNG_USE_UNALIGNED_LOADS (0)
+	#endif
+#endif
+
+#if defined(_MSC_VER) || defined(__MINGW32__) || FPNG_X86_OR_X64_CPU
 	#ifndef __LITTLE_ENDIAN
 	#define __LITTLE_ENDIAN 1234
 	#endif
@@ -29,7 +64,7 @@
 	#define __BIG_ENDIAN 4321
 	#endif
 
-	// Assume little endian on Windows.
+	// Assume little endian on Windows/x86/x64.
 	#define __BYTE_ORDER __LITTLE_ENDIAN
 #elif defined(__APPLE__)
 	#define __BYTE_ORDER __BYTE_ORDER__
@@ -51,9 +86,6 @@
 	#error __BYTE_ORDER undefined. Compile with -D__BYTE_ORDER=1234 for little endian or -D__BYTE_ORDER=4321 for big endian.
 #endif
 
-// Allow the disabling of the chunk data CRC32 checks, for fuzz testing of the decoder
-#define FPNG_DISABLE_DECODE_CRC32_CHECKS (0)
-
 namespace fpng
 {
 	static const int FPNG_FALSE = 0, FPNG_ADLER32_INIT = 1;
@@ -62,19 +94,9 @@ namespace fpng
 
 	template <typename S> static inline S maximum(S a, S b) { return (a > b) ? a : b; }
 	template <typename S> static inline S minimum(S a, S b) { return (a < b) ? a : b; }
-		
-	static inline uint16_t simple_swap16(uint16_t x) { return (uint16_t)((x >> 8) | (x << 8)); }
+
 	static inline uint32_t simple_swap32(uint32_t x) { return (x >> 24) | ((x >> 8) & 0x0000FF00) | ((x << 8) & 0x00FF0000) | (x << 24); }
 	static inline uint64_t simple_swap64(uint64_t x) { return (((uint64_t)simple_swap32((uint32_t)x)) << 32U) | simple_swap32((uint32_t)(x >> 32U)); }
-
-	static inline uint16_t swap16(uint16_t x)
-	{
-#if defined(__GNUC__) || defined(__clang__)
-		return __builtin_bswap16(x);
-#else
-		return simple_swap16(x);
-#endif
-	}
 
 	static inline uint32_t swap32(uint32_t x)
 	{
@@ -94,29 +116,75 @@ namespace fpng
 #endif
 	}
 
-#if __BYTE_ORDER == __BIG_ENDIAN
-	#define READ_LE16(p) swap16(*reinterpret_cast<const uint16_t *>(p))
-	#define READ_LE32(p) swap32(*reinterpret_cast<const uint32_t *>(p))
-	#define WRITE_LE32(p, v) *reinterpret_cast<uint32_t *>(p) = swap32((uint32_t)(v))
-	#define WRITE_LE64(p, v) *reinterpret_cast<uint64_t *>(p) = swap64((uint64_t)(v))
-	
-	#define READ_BE32(p) *reinterpret_cast<const uint32_t *>(p)
-#else
-	#define READ_LE16(p) (*reinterpret_cast<const uint16_t *>(p))
-	#define READ_LE32(p) (*reinterpret_cast<const uint32_t *>(p))
-	#define WRITE_LE32(p, v) *reinterpret_cast<uint32_t *>(p) = (uint32_t)(v)
-	#define WRITE_LE64(p, v) *reinterpret_cast<uint64_t *>(p) = (uint64_t)(v)
+#if FPNG_USE_UNALIGNED_LOADS
+	#if __BYTE_ORDER == __BIG_ENDIAN
+		#define READ_LE32(p) swap32(*reinterpret_cast<const uint32_t *>(p))
+		#define WRITE_LE32(p, v) *reinterpret_cast<uint32_t *>(p) = swap32((uint32_t)(v))
+		#define WRITE_LE64(p, v) *reinterpret_cast<uint64_t *>(p) = swap64((uint64_t)(v))
 
-	#define READ_BE32(p) swap32(*reinterpret_cast<const uint32_t *>(p))
+		#define READ_BE32(p) *reinterpret_cast<const uint32_t *>(p)
+	#else
+		#define READ_LE32(p) (*reinterpret_cast<const uint32_t *>(p))
+		#define WRITE_LE32(p, v) *reinterpret_cast<uint32_t *>(p) = (uint32_t)(v)
+		#define WRITE_LE64(p, v) *reinterpret_cast<uint64_t *>(p) = (uint64_t)(v)
+
+		#define READ_BE32(p) swap32(*reinterpret_cast<const uint32_t *>(p))
+	#endif
+#else
+	// A good compiler should be able to optimize these routines - hopefully. They are crucial for performance.
+	static inline uint32_t READ_LE32(const void* p)
+	{
+		const uint8_t* pBytes = (const uint8_t*)p;
+		return ((uint32_t)pBytes[0]) | (((uint32_t)pBytes[1]) << 8U) | (((uint32_t)pBytes[2]) << 16U) | (((uint32_t)pBytes[3]) << 24U);
+	}
+
+	static inline uint32_t READ_BE32(const void* p)
+	{
+		const uint8_t* pBytes = (const uint8_t*)p;
+		return ((uint32_t)pBytes[3]) | (((uint32_t)pBytes[2]) << 8U) | (((uint32_t)pBytes[1]) << 16U) | (((uint32_t)pBytes[0]) << 24U);
+	}
+
+	static inline void WRITE_LE32(const void* p, uint32_t v)
+	{
+		uint8_t* pBytes = (uint8_t*)p;
+		pBytes[0] = (uint8_t)(v);
+		pBytes[1] = (uint8_t)(v >> 8);
+		pBytes[2] = (uint8_t)(v >> 16);
+		pBytes[3] = (uint8_t)(v >> 24);
+	}
+
+	static inline void WRITE_LE64(const void* p, uint64_t v)
+	{
+		uint8_t* pBytes = (uint8_t*)p;
+		pBytes[0] = (uint8_t)(v);
+		pBytes[1] = (uint8_t)(v >> 8);
+		pBytes[2] = (uint8_t)(v >> 16);
+		pBytes[3] = (uint8_t)(v >> 24);
+		pBytes[4] = (uint8_t)(v >> 32);
+		pBytes[5] = (uint8_t)(v >> 40);
+		pBytes[6] = (uint8_t)(v >> 48);
+		pBytes[7] = (uint8_t)(v >> 56);
+	}
 #endif
-				
+
+	// Customized the very common case of reading a 24bpp pixel from memory
+	static inline uint32_t READ_RGB_PIXEL(const void* p)
+	{
+#if FPNG_USE_UNALIGNED_LOADS 
+		return READ_LE32(p) & 0xFFFFFF;
+#else
+		const uint8_t* pBytes = (const uint8_t*)p;
+		return ((uint32_t)pBytes[0]) | (((uint32_t)pBytes[1]) << 8U) | (((uint32_t)pBytes[2]) << 16U);
+#endif
+	}
+
 	const uint32_t FPNG_CRC32_INIT = 0;
 	static inline uint32_t fpng_crc32(uint32_t prev_crc32, const void* pData, size_t size)
 	{
 		// Call into Crc32.cpp. Feel free to replace this with something faster.
 		return crc32_fast(pData, size, prev_crc32);
 	}
-		
+
 	// Vanilla adler32 function. Feel free to replace this with something faster.
 	static uint32_t fpng_adler32(uint32_t adler, const uint8_t* ptr, size_t buf_len)
 	{
@@ -131,6 +199,15 @@ namespace fpng
 			s1 %= 65521U, s2 %= 65521U; buf_len -= block_len; block_len = 5552;
 		}
 		return (s2 << 16) + s1;
+	}
+
+	// Ensure we've been configured for endianness correctly.
+	static inline bool endian_check()
+	{
+		uint32_t endian_check = 0;
+		WRITE_LE32(&endian_check, 0x1234ABCD);
+		const uint32_t first_byte = reinterpret_cast<const uint8_t*>(&endian_check)[0];
+		return first_byte == 0xCD;
 	}
 		
 	static const uint16_t g_defl_len_sym[256] = {
@@ -594,7 +671,7 @@ do { \
 			uint32_t prev_lits;
 
 			{
-				uint32_t lits = READ_LE32(pSrc + src_ofs) & 0xFFFFFF;
+				uint32_t lits = READ_RGB_PIXEL(pSrc + src_ofs);
 
 				*pDst_codes++ = lits << 8;
 
@@ -609,7 +686,7 @@ do { \
 
 			while (src_ofs < end_src_ofs)
 			{
-				uint32_t lits = READ_LE32(pSrc + src_ofs) & 0xFFFFFF;
+				uint32_t lits = READ_RGB_PIXEL(pSrc + src_ofs);
 
 				if (lits == prev_lits)
 				{
@@ -618,7 +695,7 @@ do { \
 
 					while (match_len < max_match_len)
 					{
-						if ((READ_LE32(pSrc + src_ofs + match_len) & 0xFFFFFF) != lits)
+						if (READ_RGB_PIXEL(pSrc + src_ofs + match_len) != lits)
 							break;
 						match_len += 3;
 					}
@@ -753,7 +830,7 @@ do { \
 			uint32_t prev_lits;
 
 			{
-				uint32_t lits = READ_LE32(pSrc + src_ofs) & 0xFFFFFF;
+				uint32_t lits = READ_RGB_PIXEL(pSrc + src_ofs);
 
 				PUT_BITS_CZ(g_dyn_huff_3_codes[lits & 0xFF].m_code, g_dyn_huff_3_codes[lits & 0xFF].m_code_size);
 				PUT_BITS_CZ(g_dyn_huff_3_codes[(lits >> 8) & 0xFF].m_code, g_dyn_huff_3_codes[(lits >> 8) & 0xFF].m_code_size);
@@ -768,7 +845,7 @@ do { \
 
 			while (src_ofs < end_src_ofs)
 			{
-				uint32_t lits = READ_LE32(pSrc + src_ofs) & 0xFFFFFF;
+				uint32_t lits = READ_RGB_PIXEL(pSrc + src_ofs);
 
 				if (lits == prev_lits)
 				{
@@ -777,7 +854,7 @@ do { \
 
 					while (match_len < max_match_len)
 					{
-						if ((READ_LE32(pSrc + src_ofs + match_len) & 0xFFFFFF) != lits)
+						if (READ_RGB_PIXEL(pSrc + src_ofs + match_len) != lits)
 							break;
 						match_len += 3;
 					}
@@ -1209,6 +1286,12 @@ do_literals:
 
 	bool fpng_encode_image_to_memory(const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, std::vector<uint8_t>& out_buf, uint32_t flags)
 	{
+		if (!endian_check())
+		{
+			assert(0);
+			return false;
+		}
+
 		if ((w < 1) || (h < 1) || (w * h > UINT32_MAX) || (w > FPNG_MAX_SUPPORTED_DIM) || (h > FPNG_MAX_SUPPORTED_DIM))
 		{
 			assert(0);
@@ -2479,6 +2562,12 @@ do_literals:
 	{
 		static const uint8_t s_png_sig[8] = { 137, 80, 78, 71, 13, 10, 26, 10 };
 
+		if (!endian_check())
+		{
+			assert(0);
+			return false;
+		}
+				
 		width = 0;
 		height = 0;
 		channels_in_file = 0;
