@@ -74,7 +74,7 @@ Passes over the input image and dynamic allocations are minimized, although it d
 
 ## Building
 
-To build, compile from the included .SLN with Visual Studio 2019/2022 or use cmake to generate a .SLN file. For Linux/OSX, use "cmake ." then "make". Tested with MSVC 2019/gcc/clang.
+To build, compile from the included .SLN with Visual Studio 2019/2022 or use cmake to generate a .SLN file. For Linux/OSX, use "cmake -DSSE=1 ." or "cmake ." then "make". Tested with MSVC 2022/2019/gcc/clang.
 
 I have only tested fpng.cpp on little endian systems. The code is there for big endian, and it should work, but it needs testing.
 
@@ -98,26 +98,36 @@ The test app decompresses fpng's output using lodepng, stb_image, and the fpng d
 
 ## Using fpng 
 
-To use fpng.cpp in other programs, copy fpng.cpp/.h and Crc32.cpp/.h into your project. No other configuration or files are needed. Computing the CRC-32 of buffers is a substantial proportion of overall compression time in fpng, so if you have a faster CRC-32 function you can modify `fpng_crc()` in fpng.cpp to call that instead. The one included in Crc32.cpp doesn't utilize any special CPU instruction sets, so it could be faster. 
+To use fpng.cpp in other programs, copy fpng.cpp/.h into your project. Alternatively, `#include "fpng.cpp"` and `#include "fpng.h"` in one place, and then `#include "fpng.h"` everywhere else. 
 
-`#include "fpng.h"` then call one of these C-style functions in the "fpng" namespace to encode an image:
+There are a few optional compile-time defines you can use to configure fpng, particularly `FPNG_NO_SSE`. With gcc/clang on x86/x64, to get SSE you must compile with "-msse4.1 -mpclmul". Also, the code has only been tested with `-fno-strict-aliasing` (same as the Linux kernel, and MSVC's default). See the top of fpng.cpp for a list of the optional defines, and the CMakeLists.txt file for compiler options.
+
+### Initialization
+
+**Call `fpng::fpng_init()` once before using fpng** so it can detect if the CPU supports SSE 4.1+pclmul (for fast CRC-32 and Adler32). Otherwise, it'll always use the slower scalar fallbacks.
+
+### Encoding
+
+Call one of these key C-style functions in the "fpng" namespace:
 
 ```
 namespace fpng {
-bool fpng_encode_image_to_memory(const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, std::vector<uint8_t>& out_buf, uint32_t flags = 0);
-bool fpng_encode_image_to_file(const char* pFilename, const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, uint32_t flags = 0);
+  bool fpng_encode_image_to_memory(const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, std::vector<uint8_t>& out_buf, uint32_t flags = 0);
+  bool fpng_encode_image_to_file(const char* pFilename, const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, uint32_t flags = 0);
 }
 ```
 
 `num_chans` must be 3 or 4. There must be ```w*3*h``` or ```w*4*h``` bytes pointed to by ```pImage```. The image row pitch is always ```w*3``` or ```w*4``` bytes. There is no automatic determination if the image actually uses an alpha channel, so if you call it with 4 you will always get a 32bpp .PNG file.
 
+### Decoding
+
 The included fast decoder will only decode PNG files created by fpng. However, it has a full PNG chunk parser, and when it detects PNG files not written by fpng it returns the error code `FPNG_DECODE_NOT_FPNG` so you can fall back to a general purpose PNG reader. Also, the decompressor validates the compressed data during decompression and will immediately stop and return `FPNG_DECODE_NOT_FPNG` whenever any of the fpng constraints (implied by the fdEC marker's presence) are violated. You can use ```fpng_get_info()``` to quickly detect if a PNG file can be decoded using fpng.
 
 ```
 namespace fpng {
-int fpng_get_info(const void* pImage, uint32_t image_size, uint32_t& width, uint32_t& height, uint32_t& channels_in_file);
-int fpng_decode_memory(const void* pImage, uint32_t image_size, std::vector<uint8_t>& out, uint32_t& width, uint32_t& height, uint32_t& channels_in_file, uint32_t desired_channels);
-int fpng_decode_file(const char* pFilename, std::vector<uint8_t>& out, uint32_t& width, uint32_t& height, uint32_t& channels_in_file, uint32_t desired_channels);
+  int fpng_get_info(const void* pImage, uint32_t image_size, uint32_t& width, uint32_t& height, uint32_t& channels_in_file);
+  int fpng_decode_memory(const void* pImage, uint32_t image_size, std::vector<uint8_t>& out, uint32_t& width, uint32_t& height, uint32_t& channels_in_file, uint32_t desired_channels);
+  int fpng_decode_file(const char* pFilename, std::vector<uint8_t>& out, uint32_t& width, uint32_t& height, uint32_t& channels_in_file, uint32_t desired_channels);
 }
 ```
 
@@ -128,6 +138,18 @@ int fpng_decode_file(const char* pFilename, std::vector<uint8_t>& out, uint32_t&
 `desired_channels` must be 3 or 4. If the input PNG file is 32bpp and you request 24bpp, the alpha channel be discarded. If the input is 24bpp and you request 32bpp, the alpha channel will be set to 0xFF.
 
 The return code will be `fpng::FPNG_DECODE_SUCCESS` on success, `fpng::FPNG_DECODE_NOT_FPNG` if the PNG file should be decoded with a general purpose decoder, or one of the other error values.
+
+### Utility Functions
+
+For convienance some of the lib's internal functionality is exposed through these API's:
+
+```
+namespace fpng {
+  bool fpng_cpu_supports_sse41();
+  uint32_t fpng_crc32(const void* pData, size_t size, uint32_t prev_crc32 = FPNG_CRC32_INIT);
+  uint32_t fpng_adler32(const uint8_t* ptr, size_t buf_len, uint32_t adler = FPNG_ADLER32_INIT);
+}
+```
 
 ## Fuzzing
 
