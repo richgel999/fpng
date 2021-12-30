@@ -155,7 +155,7 @@ The fast decompressor included in fpng.cpp can explictly only handle PNG files c
 
 The decompressor's memory usage is low relative to other PNG decompressors, because it doesn't need to make any temporary allocations to temporarily hold the decompressed zlib data. (This is one side benefit of always using LZ matches with a distance of only 3 or 4 bytes.) The only large allocation is the one used to hold the output image buffer, which it directly decompresses into. This property is useful on memory-constrained embedded platforms. It's possible for a fpng decompressor to only need to hold 2 scanlines in memory.
 
-Passes over the input image and dynamic allocations are minimized, although it does use ```std::vector``` internally. The first scanline always uses filter #0, and the rest use filter #2 (previous scanline). It uses the fast CRC-32 code described by Brumme [here](https://create.stephan-brumme.com/crc32/). The original high-level PNG function (that code that writes the headers) was written by [Alex Evans](https://gist.github.com/908299).
+Passes over the input image and dynamic allocations are minimized, although it does use ```std::vector``` internally. The first scanline always uses filter #0, and the rest use filter #2 (previous scanline). It uses the fast "slice by 4" CRC-32 algorithm described by Brumme [here](https://create.stephan-brumme.com/crc32/). The original high-level PNG function (that code that writes the headers) was written by [Alex Evans](https://gist.github.com/908299).
 
 
 ## Fuzzing
