@@ -163,4 +163,6 @@ zzuf -s 1:1000000 ./fpng_test -f fpng.png
 
 ## License
 
+This code is not licensed.
+
 fpng.cpp/.h: [unlicense](https://unlicense.org/). This code is not Intellectual Property, and not copyrighted. It has been explictly and purposely placed into the Public Domain.
