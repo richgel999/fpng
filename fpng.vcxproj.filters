@@ -18,9 +18,6 @@
     <ClCompile Include="src/fpng.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src/Crc32.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src/fpng_test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -29,9 +26,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src/Crc32.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="src/fpng.h">
       <Filter>Source Files</Filter>
     </ClInclude>

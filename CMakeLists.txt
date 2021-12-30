@@ -2,8 +2,10 @@ project(fpng_test)
 
 cmake_minimum_required(VERSION 3.0)
 option(BUILD_X64 "build 64-bit" TRUE)
+option(SSE "SSE 4.1 support" FALSE)
 
 message("Initial BUILD_X64=${BUILD_X64}")
+message("Initial SSE=${SSE}")
 
 if( NOT CMAKE_BUILD_TYPE )
   set( CMAKE_BUILD_TYPE Release )
@@ -15,6 +17,12 @@ if (BUILD_X64)
 	message("Building 64-bit")
 else()
 	message("Building 32-bit")
+endif()
+
+if (SSE)
+	message("SSE enabled")
+else()
+	message("SSE disabled")
 endif()
 
 if (NOT MSVC)
@@ -43,6 +51,14 @@ if (NOT MSVC)
    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COMPILE_FLAGS}")
    set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} ${GCC_COMPILE_FLAGS}")
    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${GCC_COMPILE_FLAGS} -D_DEBUG")
+   
+   if (SSE)
+		set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -DFPNG_NO_SSE=0 -msse4.1 -mpclmul")
+		set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DFPNG_NO_SSE=0 -msse4.1 -mpclmul")
+   else()
+	  	set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -DFPNG_NO_SSE=1")
+		set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DFPNG_NO_SSE=1")
+   endif()
 else()
 	set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS}")
 	set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS}")
@@ -50,7 +66,6 @@ endif()
 
 set(FPNG_SRC_LIST ${COMMON_SRC_LIST} 
 	src/fpng.cpp
-	src/Crc32.cpp
 	src/fpng_test.cpp
 	src/lodepng.cpp
 	)

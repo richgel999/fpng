@@ -672,6 +672,8 @@ static int fuzz_test_encoder2(uint32_t fpng_flags)
 
 int main(int arg_c, char **arg_v)
 {
+	fpng::fpng_init();
+	
 	if (arg_c < 2)
 	{
 		printf("Usage: fpng_test [filename.png] <alpha_filename.png>\n");
@@ -762,6 +764,8 @@ int main(int arg_c, char **arg_v)
 
 	if (!csv_flag)
 	{
+		printf("SSE 4.1 supported: %u\n", fpng::fpng_cpu_supports_sse41());
+
 		printf("Filename: %s\n", pFilename);
 		if (pAlpha_filename)
 			printf("Alpha filename: %s\n", pFilename);

@@ -143,13 +143,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src/Crc32.cpp" />
     <ClCompile Include="src/fpng.cpp" />
     <ClCompile Include="src/fpng_test.cpp" />
     <ClCompile Include="src/lodepng.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src/Crc32.h" />
     <ClInclude Include="src/fpng.h" />
     <ClInclude Include="src/lodepng.h" />
     <ClInclude Include="src/qoi.h" />
