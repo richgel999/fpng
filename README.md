@@ -121,7 +121,7 @@ The return code will be `fpng::FPNG_DECODE_SUCCESS` on success, `fpng::FPNG_DECO
 
 ### Utility Functions
 
-For convienance some of the lib's internal functionality is exposed through these API's:
+For convenience some of the lib's internal functionality is exposed through these API's:
 
 ```
 namespace fpng {
