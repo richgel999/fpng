@@ -62,9 +62,16 @@ qoi.h fetched 12/18/2021
 
 ## Building
 
-To build, compile from the included .SLN with Visual Studio 2019/2022 or use cmake to generate a .SLN file. For Linux/OSX, use `cmake -DSSE=1 .` or `cmake .` then `make`. The test executable will be in the bin subdirectory. Tested with MSVC 2022/2019/gcc 7.5.0/clang 6.0.
+To build, compile from the included .SLN with Visual Studio 2019/2022 or use cmake to generate a .SLN file. For Linux/OSX, use
 
-I have only tested fpng.cpp on little endian systems. The code is there for big endian, and it should work, but it needs testing.
+```
+  cmake -DSSE=1 .
+  make
+```
+
+Remove "-DSSE=1" on non-x86/x64 systems. The test executable will be in the bin subdirectory. 
+
+Tested with MSVC 2022/2019/gcc 7.5.0/clang 6.0. I have only tested fpng.cpp on little endian systems. The code is there for big endian, and it should work, but it needs testing.
 
 ## Testing
 
