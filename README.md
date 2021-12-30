@@ -161,8 +161,8 @@ The fpng decoder's parser has been fuzzed to check for crashes with [zzuf](http:
 zzuf -s 1:1000000 ./fpng_test -f fpng.png
 ```
 
-## License
+## License for fpng.cpp/.h
 
-[unlicense](https://unlicense.org/) 
+See the [unlicense](https://unlicense.org/) 
 
 At least in the US, no license is necessary, as this code is not Intellectual Property, and not copyrighted. It has been explictly and purposely placed into the Public Domain.
