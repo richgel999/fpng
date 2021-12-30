@@ -80,7 +80,7 @@ The test app decompresses fpng's output using lodepng, stb_image, and the fpng d
 
 To use fpng.cpp in other programs, copy fpng.cpp/.h into your project. Alternatively, `#include "fpng.cpp"` and `#include "fpng.h"` in one place, and then `#include "fpng.h"` everywhere else. 
 
-There are a few optional compile-time defines you can use to configure fpng, particularly `FPNG_NO_SSE`. With gcc/clang on x86/x64, to get SSE you must compile with "-msse4.1 -mpclmul". Also, the code has only been tested with `-fno-strict-aliasing` (same as the Linux kernel, and MSVC's default). See the top of fpng.cpp for a list of the optional defines, and the CMakeLists.txt file for compiler options.
+There are a few optional compile-time defines you can use to configure fpng, particularly `FPNG_NO_SSE`. With gcc/clang on x86/x64, to get SSE you must compile with "-msse4.1 -mpclmul". Also, the code has only been tested with `-fno-strict-aliasing` (same as the Linux kernel, and MSVC's default). See the top of fpng.cpp for a list of the optional defines.
 
 ### Initialization
 
