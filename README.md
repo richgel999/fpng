@@ -45,22 +45,6 @@ A well-behaved lossless compressor should output files roughly up to 1/3rd large
 
 Benchmarks were made using the included fpng_test tool to generate .CSV files, MSVC 2019, on a Xeon E5-2690 3.00 GHz. The above benchmarks were made before SSE adler32/crc32 functions were added to the encoder. With 24bpp images and MSVC2022 the encoder is now around 15% faster.
 
-## Notes
-
-This version of FPNG always uses PNG filter #2 and is limited to only RLE matches (i.e. LZ matches with a match distance of either 3 or 4). It's around 5% weaker than the original release, which used LZRW1 parsing. (I'll eventually add back in the original parser as an option, but doing that will add more code/complexity to the project.)
-
-Importantly, the fpng decoder can explictly/purposely only decode PNG files written by fpng, otherwise it returns fpng::FPNG_DECODE_NOT_FPNG (so you can fall back to a general purpose PNG decoder).
-
-Note fpng's built-in (precomputed) dynamic Huffman tables (used in the default one pass mode) were generated from the 6,600 images I use for testing texture compressors.
-
-fpng's compressor places a special private ancillary chunk in its output files, which other PNG decompressors will ignore. The decompressor uses this chunk to determine if the file was written by fpng (enabling fast decompression). This chunk's definition is [here](https://github.com/richgel999/fpng/wiki/fdEC-PNG-chunk-definition).
-
-lodepng v20210627 fetched 12/18/2021
-
-stb_image_write.h v1.16 fetched 12/18/2021
-
-qoi.h fetched 12/18/2021
-
 ## Building
 
 To build, compile from the included .SLN with Visual Studio 2019/2022 or use cmake to generate a .SLN file. For Linux/OSX, use
@@ -146,6 +130,20 @@ namespace fpng {
   uint32_t fpng_adler32(const uint8_t* ptr, size_t buf_len, uint32_t adler = FPNG_ADLER32_INIT);
 }
 ```
+
+## Notes
+
+This version of FPNG always uses PNG filter #2 and is limited to only RLE matches (i.e. LZ matches with a match distance of either 3 or 4). It's around 5% weaker than the original release, which used LZRW1 parsing. (I'll eventually add back in the original parser as an option, but doing that will add more code/complexity to the project.)
+
+Importantly, the fpng decoder can explictly/purposely only decode PNG files written by fpng, otherwise it returns fpng::FPNG_DECODE_NOT_FPNG (so you can fall back to a general purpose PNG decoder).
+
+fpng's compressor places a special private ancillary chunk in its output files, which other PNG decompressors will ignore. The decompressor uses this chunk to determine if the file was written by fpng (enabling fast decompression). This chunk's definition is [here](https://github.com/richgel999/fpng/wiki/fdEC-PNG-chunk-definition).
+
+lodepng v20210627 fetched 12/18/2021
+
+stb_image_write.h v1.16 fetched 12/18/2021
+
+qoi.h fetched 12/18/2021
 
 ## Low-level description
 
