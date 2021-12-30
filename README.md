@@ -1,5 +1,5 @@
 # fpng
-fpng is a very fast C++ .PNG image reader/writer for 24/32bpp images. fpng.cpp was written to see just how fast you can write .PNG's without sacrificing too much compression. The files written by fpng conform to the [PNG standard](https://www.w3.org/TR/PNG/), are readable using any PNG decoder, and validate successfully using [pngcheck](https://www.w3.org/TR/PNG/). PNG files written using fpng can also be read back using fpng significantly faster than other PNG libraries.
+fpng is a very fast C++ .PNG image reader/writer for 24/32bpp images. fpng.cpp was written to see just how fast you can write .PNG's without sacrificing too much compression. The files written by fpng conform to the [PNG standard](https://www.w3.org/TR/PNG/), are readable using any PNG decoder, and validate successfully using [pngcheck](https://www.w3.org/TR/PNG/). PNG files written using fpng can also be read back using fpng significantly faster than other PNG libraries, due to its explicit use of [length limited Huffman codes](https://create.stephan-brumme.com/length-limited-prefix-codes/) and a very optimized decoder that exploits these codes.
 
 fpng.cpp compression compared to stb_image_write.h: 12-19x faster with roughly 5-11% avg. smaller files.
 fpng.cpp decompression compared to stb_image_write.h: ~3x faster
