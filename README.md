@@ -163,8 +163,4 @@ zzuf -s 1:1000000 ./fpng_test -f fpng.png
 
 ## License
 
-fpng.cpp/.h: Apache 2.0 license. See the end of fpng.cpp.
-
-Crc32.cpp/.h: Copyright (c) 2011-2019 Stephan Brumme. zlib license:
-
-https://github.com/stbrumme/crc32
+fpng.cpp/.h: [unlicense](https://unlicense.org/). This code is not Intellectual Property, and not copyrighted. It has been explictly and purposely placed into the Public Domain.
