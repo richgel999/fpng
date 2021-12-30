@@ -88,7 +88,7 @@ There are a few optional compile-time defines you can use to configure fpng, par
 
 ### Encoding
 
-Call one of these key C-style functions in the "fpng" namespace:
+Call one of these C-style functions in the "fpng" namespace:
 
 ```
 namespace fpng {
