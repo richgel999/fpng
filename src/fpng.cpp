@@ -270,10 +270,7 @@ namespace fpng
 		const __m128i k3k4 = _mm_load_si128(reinterpret_cast<const __m128i*>(s_k3k4));
 
 		for (size -= 16, p += 16; size >= 16; size -= 16, p += 16)
-		{
-			__m128i t = _mm_clmulepi64_si128(b, k3k4, 0);
-			b = _mm_xor_si128(_mm_xor_si128(_mm_clmulepi64_si128(b, k3k4, 17), _mm_loadu_si128(reinterpret_cast<const __m128i*>(p))), t);
-		}
+			b = _mm_xor_si128(_mm_xor_si128(_mm_clmulepi64_si128(b, k3k4, 17), _mm_loadu_si128(reinterpret_cast<const __m128i*>(p))), _mm_clmulepi64_si128(b, k3k4, 0));
 
 		// Final stages: fold to 64-bits, 32-bit Barrett reduction
 		const __m128i z = _mm_set_epi32(0, ~0, 0, ~0), u = _mm_load_si128(reinterpret_cast<const __m128i*>(s_u));
