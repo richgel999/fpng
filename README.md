@@ -60,18 +60,6 @@ stb_image_write.h v1.16 fetched 12/18/2021
 
 qoi.h fetched 12/18/2021
 
-## Low-level description
-
-fpng's compressor uses a custom pixel-wise Deflate compressor which was optimized for simplicity over high ratios. The "parser" only supports RLE matches using a match distance of 3/4 bytes, all literals (except the PNG filter bytes) are output in groups of 3 or 4, all matches are multiples of 3/4 bytes, and it only utilizes a single dynamic Huffman block within a single PNG IDAT chunk. It utilizes 64-bit registers and exploits unaligned little endian reads/writes. (On big endian CPU's it'll use 32/64bpp byteswaps.)  
-
-There are two compressor variants in this release: a faster single pass compressor that utilizes a set of precomputed Huffman tables, or a slightly better two pass compressor that results in smaller files (enabled by passing FPNG_ENCODE_SLOWER flag to the compressor). fpng will fall back to using uncompressed Deflate blocks if the image fails to compress.
-
-The fast decompressor included in fpng.cpp can explictly only handle PNG files created by fpng. To detect these files, it looks for a PNG private ancillary chunk named "fdEC", which other readers will ignore because it's not marked as a "critical" PNG chunk. If this chunk isn't found, or the file doesn't conform to fpng's single IDAT and zlib constraints, the decompressor returns FPNG_DECODE_NOT_FPNG. The decompressor itself has numerous checks to ensure the PNG file was written by fpng (i.e. even if the fdEC chunk is present we don't blindly assume the Deflate data follows the right constraints).
-
-The decompressor's memory usage is low relative to other PNG decompressors, because it doesn't need to make any temporary allocations to temporarily hold the decompressed zlib data. (This is one side benefit of always using LZ matches with a distance of only 3 or 4 bytes.) The only large allocation is the one used to hold the output image buffer, which it directly decompresses into. This property is useful on memory-constrained embedded platforms. It's possible for a fpng decompressor to only need to hold 2 scanlines in memory.
-
-Passes over the input image and dynamic allocations are minimized, although it does use ```std::vector``` internally. The first scanline always uses filter #0, and the rest use filter #2 (previous scanline). It uses the fast CRC-32 code described by Brumme [here](https://create.stephan-brumme.com/crc32/). The original high-level PNG function (that code that writes the headers) was written by [Alex Evans](https://gist.github.com/908299).
-
 ## Building
 
 To build, compile from the included .SLN with Visual Studio 2019/2022 or use cmake to generate a .SLN file. For Linux/OSX, use "cmake -DSSE=1 ." or "cmake ." then "make". Tested with MSVC 2022/2019/gcc/clang.
@@ -150,6 +138,19 @@ namespace fpng {
   uint32_t fpng_adler32(const uint8_t* ptr, size_t buf_len, uint32_t adler = FPNG_ADLER32_INIT);
 }
 ```
+
+## Low-level description
+
+fpng's compressor uses a custom pixel-wise Deflate compressor which was optimized for simplicity over high ratios. The "parser" only supports RLE matches using a match distance of 3/4 bytes, all literals (except the PNG filter bytes) are output in groups of 3 or 4, all matches are multiples of 3/4 bytes, and it only utilizes a single dynamic Huffman block within a single PNG IDAT chunk. It utilizes 64-bit registers and exploits unaligned little endian reads/writes. (On big endian CPU's it'll use 32/64bpp byteswaps.)  
+
+There are two compressor variants in this release: a faster single pass compressor that utilizes a set of precomputed Huffman tables, or a slightly better two pass compressor that results in smaller files (enabled by passing FPNG_ENCODE_SLOWER flag to the compressor). fpng will fall back to using uncompressed Deflate blocks if the image fails to compress.
+
+The fast decompressor included in fpng.cpp can explictly only handle PNG files created by fpng. To detect these files, it looks for a PNG private ancillary chunk named "fdEC", which other readers will ignore because it's not marked as a "critical" PNG chunk. If this chunk isn't found, or the file doesn't conform to fpng's single IDAT and zlib constraints, the decompressor returns FPNG_DECODE_NOT_FPNG. The decompressor itself has numerous checks to ensure the PNG file was written by fpng (i.e. even if the fdEC chunk is present we don't blindly assume the Deflate data follows the right constraints).
+
+The decompressor's memory usage is low relative to other PNG decompressors, because it doesn't need to make any temporary allocations to temporarily hold the decompressed zlib data. (This is one side benefit of always using LZ matches with a distance of only 3 or 4 bytes.) The only large allocation is the one used to hold the output image buffer, which it directly decompresses into. This property is useful on memory-constrained embedded platforms. It's possible for a fpng decompressor to only need to hold 2 scanlines in memory.
+
+Passes over the input image and dynamic allocations are minimized, although it does use ```std::vector``` internally. The first scanline always uses filter #0, and the rest use filter #2 (previous scanline). It uses the fast CRC-32 code described by Brumme [here](https://create.stephan-brumme.com/crc32/). The original high-level PNG function (that code that writes the headers) was written by [Alex Evans](https://gist.github.com/908299).
+
 
 ## Fuzzing
 
