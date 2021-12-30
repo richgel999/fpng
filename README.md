@@ -165,4 +165,4 @@ zzuf -s 1:1000000 ./fpng_test -f fpng.png
 
 [unlicense](https://unlicense.org/) 
 
-No license is necessary, as this code is not Intellectual Property, and not copyrighted. It has been explictly and purposely placed into the Public Domain.
+At least in the US, no license is necessary, as this code is not Intellectual Property, and not copyrighted. It has been explictly and purposely placed into the Public Domain.
