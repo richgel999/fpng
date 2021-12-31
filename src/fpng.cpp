@@ -401,48 +401,53 @@ namespace fpng
 #if FPNG_X86_OR_X64_CPU && !FPNG_NO_SSE 
 	// See "Fast Computation of Adler32 Checksums":
 	// https ://www.intel.com/content/www/us/en/developer/articles/technical/fast-computation-of-adler32-checksums.html
-	// SSE 4.1, 8 bytes per iteration, 2-2.5x faster than the scalar version.
-	static uint32_t adler32_sse_8(const uint8_t* p, size_t len, uint32_t initial)
+	// SSE 4.1, 16 bytes per iteration
+	static uint32_t adler32_sse_16(const uint8_t* p, size_t len, uint32_t initial)
 	{
 		uint32_t s1 = initial & 0xFFFF, s2 = initial >> 16;
 		const uint32_t K = 65521;
 
-		while (len >= 8)
+		while (len >= 16)
 		{
-			__m128i a = _mm_setr_epi32(s1, 0, 0, 0), b = _mm_setr_epi32(0, 0, 0, 0), c = _mm_setr_epi32(0, 0, 0, 0), d = _mm_setr_epi32(0, 0, 0, 0);
+			__m128i a = _mm_setr_epi32(s1, 0, 0, 0), b = _mm_setzero_si128(), c = _mm_setzero_si128(), d = _mm_setzero_si128(), 
+				e = _mm_setzero_si128(), f = _mm_setzero_si128(), g = _mm_setzero_si128(), h = _mm_setzero_si128();
 
-			const size_t n = minimum<size_t>(len >> 3, 5552);
+			const size_t n = minimum<size_t>(len >> 4, 5552);
 
 			for (size_t i = 0; i < n; i++)
 			{
-				a = _mm_add_epi32(a, _mm_cvtepu8_epi32(_mm_set1_epi32(((const uint32_t*)p)[i * 2 + 0])));
-				b = _mm_add_epi32(b, a);
-				c = _mm_add_epi32(c, _mm_cvtepu8_epi32(_mm_set1_epi32(((const uint32_t*)p)[i * 2 + 1])));
-				d = _mm_add_epi32(d, c);
+				const __m128i v = _mm_loadu_si128((const __m128i*)(p + i * 16));
+				a = _mm_add_epi32(a, _mm_cvtepu8_epi32(_mm_shuffle_epi32(v, _MM_SHUFFLE(0, 0, 0, 0)))); b = _mm_add_epi32(b, a);
+				c = _mm_add_epi32(c, _mm_cvtepu8_epi32(_mm_shuffle_epi32(v, _MM_SHUFFLE(1, 1, 1, 1)))); d = _mm_add_epi32(d, c);
+				e = _mm_add_epi32(e, _mm_cvtepu8_epi32(_mm_shuffle_epi32(v, _MM_SHUFFLE(2, 2, 2, 2)))); f = _mm_add_epi32(f, e);
+				g = _mm_add_epi32(g, _mm_cvtepu8_epi32(_mm_shuffle_epi32(v, _MM_SHUFFLE(3, 3, 3, 3)))); h = _mm_add_epi32(h, g);
 			}
 
-			uint32_t sa[8], sb[8];
-			_mm_storeu_si128((__m128i *)sa, a); _mm_storeu_si128((__m128i *)(sa + 4), c);
-			_mm_storeu_si128((__m128i *)sb, b); _mm_storeu_si128((__m128i *)(sb + 4), d);
+			uint32_t sa[16], sb[16];
+			_mm_storeu_si128((__m128i*)sa, a); _mm_storeu_si128((__m128i*)(sa + 4), c);
+			_mm_storeu_si128((__m128i*)sb, b); _mm_storeu_si128((__m128i*)(sb + 4), d);
+			_mm_storeu_si128((__m128i*)(sa + 8), e); _mm_storeu_si128((__m128i*)(sa + 12), g);
+			_mm_storeu_si128((__m128i*)(sb + 8), f); _mm_storeu_si128((__m128i*)(sb + 12), h);
 
+			// This could be vectorized, but it's only executed every 5552*16 iterations.
 			uint64_t vs1 = 0;
-			for (uint32_t i = 0; i < 8; i++)
+			for (uint32_t i = 0; i < 16; i++)
 				vs1 += sa[i];
 
 			uint64_t vs2_a = 0;
-			for (uint32_t i = 0; i < 8; i++)
+			for (uint32_t i = 0; i < 16; i++)
 				vs2_a += sa[i] * (uint64_t)i;
 			uint64_t vs2_b = 0;
-			for (uint32_t i = 0; i < 8; i++)
+			for (uint32_t i = 0; i < 16; i++)
 				vs2_b += sb[i];
-			vs2_b *= 8U;
+			vs2_b *= 16U;
 			uint64_t vs2 = vs2_b - vs2_a + s2;
 
 			s1 = (uint32_t)(vs1 % K);
 			s2 = (uint32_t)(vs2 % K);
 
-			p += n * 8;
-			len -= n * 8;
+			p += n * 16;
+			len -= n * 16;
 		}
 
 		for (; len; len--)
@@ -470,13 +475,13 @@ namespace fpng
 		return (s2 << 16) + s1;
 	}
 
-	uint32_t fpng_adler32(const uint8_t* ptr, size_t buf_len, uint32_t adler)
+	uint32_t fpng_adler32(const void* pData, size_t size, uint32_t adler)
 	{
 #if FPNG_X86_OR_X64_CPU && !FPNG_NO_SSE 
 		if (g_cpu_info.can_use_sse41())
-			return adler32_sse_8(ptr, buf_len, adler);
+			return adler32_sse_16((const uint8_t*)pData, size, adler);
 #endif
-		return fpng_adler32_scalar(ptr, buf_len, adler);
+		return fpng_adler32_scalar((const uint8_t*)pData, size, adler);
 	}
 
 	// Ensure we've been configured for endianness correctly.

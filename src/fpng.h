@@ -23,7 +23,7 @@ namespace fpng
 
 	// Fast Adler32 SSE4.1 Adler-32 with a scalar fallback.
 	const uint32_t FPNG_ADLER32_INIT = 1;
-	uint32_t fpng_adler32(const uint8_t* ptr, size_t buf_len, uint32_t adler = FPNG_ADLER32_INIT);
+	uint32_t fpng_adler32(const void* pData, size_t size, uint32_t adler = FPNG_ADLER32_INIT);
 
 	// ---- Compression
 	enum
