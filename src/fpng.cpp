@@ -2135,7 +2135,7 @@ do_literals:
 		GET_BITS(bfinal, 1);
 		GET_BITS(btype, 2);
 
-		// Must be the final block or it's not valid, and type=1 (dynamic)
+		// Must be the final block or it's not valid, and type=2 (dynamic)
 		if ((bfinal != 1) || (btype != 2))
 			return false;
 		
@@ -2513,7 +2513,7 @@ do_literals:
 		GET_BITS(bfinal, 1);
 		GET_BITS(btype, 2);
 
-		// Must be the final block or it's not valid, and type=1 (dynamic)
+		// Must be the final block or it's not valid, and type=2 (dynamic)
 		if ((bfinal != 1) || (btype != 2))
 			return false;
 
