@@ -1527,33 +1527,48 @@ do_literals:
 			// Previous scanline
 			*pDst++ = 2;
 
-			if (num_chans == 3)
+#if FPNG_X86_OR_X64_CPU && !FPNG_NO_SSE
+			if (g_cpu_info.can_use_sse41())
 			{
-				for (uint32_t x = 0; x < (uint32_t)w; x++)
-				{
-					pDst[0] = (uint8_t)(pSrc[0] - pPrev_src[0]);
-					pDst[1] = (uint8_t)(pSrc[1] - pPrev_src[1]);
-					pDst[2] = (uint8_t)(pSrc[2] - pPrev_src[2]);
+				uint32_t bytes_to_process = w * num_chans, ofs = 0;
+				for (; bytes_to_process >= 16; bytes_to_process -= 16, ofs += 16)
+					_mm_storeu_si128((__m128i*)(pDst + ofs), _mm_sub_epi8(_mm_loadu_si128((const __m128i*)(pSrc + ofs)), _mm_loadu_si128((const __m128i*)(pPrev_src + ofs))));
 
-					pSrc += 3;
-					pPrev_src += 3;
-					pDst += 3;
-				}
+				for (; bytes_to_process; bytes_to_process--, ofs++)
+					pDst[ofs] = (uint8_t)(pSrc[ofs] - pPrev_src[ofs]);
 			}
 			else
+#endif
 			{
-				for (uint32_t x = 0; x < (uint32_t)w; x++)
+				if (num_chans == 3)
 				{
-					pDst[0] = (uint8_t)(pSrc[0] - pPrev_src[0]);
-					pDst[1] = (uint8_t)(pSrc[1] - pPrev_src[1]);
-					pDst[2] = (uint8_t)(pSrc[2] - pPrev_src[2]);
-					pDst[3] = (uint8_t)(pSrc[3] - pPrev_src[3]);
+					for (uint32_t x = 0; x < (uint32_t)w; x++)
+					{
+						pDst[0] = (uint8_t)(pSrc[0] - pPrev_src[0]);
+						pDst[1] = (uint8_t)(pSrc[1] - pPrev_src[1]);
+						pDst[2] = (uint8_t)(pSrc[2] - pPrev_src[2]);
 
-					pSrc += 4;
-					pPrev_src += 4;
-					pDst += 4;
+						pSrc += 3;
+						pPrev_src += 3;
+						pDst += 3;
+					}
+				}
+				else
+				{
+					for (uint32_t x = 0; x < (uint32_t)w; x++)
+					{
+						pDst[0] = (uint8_t)(pSrc[0] - pPrev_src[0]);
+						pDst[1] = (uint8_t)(pSrc[1] - pPrev_src[1]);
+						pDst[2] = (uint8_t)(pSrc[2] - pPrev_src[2]);
+						pDst[3] = (uint8_t)(pSrc[3] - pPrev_src[3]);
+
+						pSrc += 4;
+						pPrev_src += 4;
+						pDst += 4;
+					}
 				}
 			}
+
 			break;
 		}
 		default:
