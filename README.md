@@ -103,7 +103,7 @@ namespace fpng {
 
 ### Decoding
 
-The included fast decoder will only decode PNG files created by fpng. However, it has a full PNG chunk parser, and when it detects PNG files not written by fpng it returns the error code `FPNG_DECODE_NOT_FPNG` so you can fall back to a general purpose PNG reader. Also, the decompressor validates the compressed data during decompression and will immediately stop and return `FPNG_DECODE_NOT_FPNG` whenever any of the fpng constraints (implied by the fdEC marker's presence) are violated. You can use ```fpng_get_info()``` to quickly detect if a PNG file can be decoded using fpng.
+**The included fast decoder will only decode PNG files created by fpng.** However, it has a full PNG chunk parser, and when it detects PNG files not written by fpng it returns the error code `FPNG_DECODE_NOT_FPNG` so you can fall back to a general purpose PNG reader. Also, the decompressor validates the compressed data during decompression and will immediately stop and return `FPNG_DECODE_NOT_FPNG` whenever any of the fpng constraints (implied by the fdEC marker's presence) are violated. You can use ```fpng_get_info()``` to quickly detect if a PNG file can be decoded using fpng.
 
 ```
 namespace fpng {
