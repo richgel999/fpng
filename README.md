@@ -117,7 +117,7 @@ namespace fpng {
 
 `width`, `height`, `channels_in_file` will be set to the image's dimensions and number of channels, which will always be 3 or 4.
 
-`desired_channels` must be 3 or 4. If the input PNG file is 32bpp and you request 24bpp, the alpha channel be discarded. If the input is 24bpp and you request 32bpp, the alpha channel will be set to 0xFF.
+`desired_channels` must be 3 or 4. If the input PNG file is 32bpp and you request 24bpp, the alpha channel will be discarded. If the input is 24bpp and you request 32bpp, the alpha channel will be set to 0xFF.
 
 The return code will be `fpng::FPNG_DECODE_SUCCESS` on success, `fpng::FPNG_DECODE_NOT_FPNG` if the PNG file should be decoded with a general purpose decoder, or one of the other error values.
 
