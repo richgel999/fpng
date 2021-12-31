@@ -5,7 +5,7 @@ fpng.cpp compression compared to stb_image_write.h: 12-19x faster with roughly 5
 
 fpng.cpp decompression compared to stb_image.h: 2.5-3x faster
 
-fpng.cpp compared to libpng: ~23x faster compression, 2.5-3x faster decompression
+fpng.cpp compared to libpng: ~23x faster compression, 2.5-3x faster decompression (on fpng compressed PNG's)
 
 Here's an example image encoded by fpng (a downsampled version of "bridge" from [here](http://imagecompression.info/test_images/)):
 ![fpng encoded "bridge" image](https://github.com/richgel999/fpng/blob/main/example.png)
