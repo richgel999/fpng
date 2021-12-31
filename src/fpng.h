@@ -7,7 +7,7 @@
 
 namespace fpng
 {
-	// ---- Library initialization - call once to identify if the process supports SSE.
+	// ---- Library initialization - call once to identify if the processor supports SSE.
 	// Otherwise you'll only get scalar fallbacks.
 	void fpng_init();
 
