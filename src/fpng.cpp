@@ -1570,7 +1570,7 @@ do_literals:
 			return false;
 		}
 
-		if ((w < 1) || (h < 1) || (w * h > UINT32_MAX) || (w > FPNG_MAX_SUPPORTED_DIM) || (h > FPNG_MAX_SUPPORTED_DIM))
+		if ((w < 1) || (h < 1) || (w * (uint64_t)h > UINT32_MAX) || (w > FPNG_MAX_SUPPORTED_DIM) || (h > FPNG_MAX_SUPPORTED_DIM))
 		{
 			assert(0);
 			return false;
