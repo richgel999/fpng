@@ -1586,7 +1586,7 @@ do_literals:
 		uint32_t y;
 
 		std::vector<uint8_t> temp_buf;
-		temp_buf.resize(((bpl + 1) * h + 7) & ~7);
+		temp_buf.resize((bpl + 1) * h + 7);
 		uint32_t temp_buf_ofs = 0;
 
 		for (y = 0; y < h; ++y)
