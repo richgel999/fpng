@@ -129,7 +129,7 @@ For convenience some of the lib's internal functionality is exposed through thes
 namespace fpng {
   bool fpng_cpu_supports_sse41();
   uint32_t fpng_crc32(const void* pData, size_t size, uint32_t prev_crc32 = FPNG_CRC32_INIT);
-  uint32_t fpng_adler32(const uint8_t* ptr, size_t buf_len, uint32_t adler = FPNG_ADLER32_INIT);
+  uint32_t fpng_adler32(const void* pData, size_t size, uint32_t adler = FPNG_ADLER32_INIT);
 }
 ```
 
