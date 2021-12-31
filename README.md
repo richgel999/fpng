@@ -3,7 +3,7 @@ fpng is a very fast C++ .PNG image reader/writer for 24/32bpp images. fpng.cpp w
 
 fpng.cpp compression compared to stb_image_write.h: 12-19x faster with roughly 5-11% avg. smaller files. 
 
-fpng.cpp decompression compared to stb_image.h: 2.5-3x faster
+fpng.cpp decompression compared to stb_image.h: 2.5-3x faster (on fpng compressed PNG's)
 
 fpng.cpp compared to libpng: ~23x faster compression, 2.5-3x faster decompression (on fpng compressed PNG's)
 
