@@ -400,7 +400,7 @@ namespace fpng
 
 #if FPNG_X86_OR_X64_CPU && !FPNG_NO_SSE 
 	// See "Fast Computation of Adler32 Checksums":
-	// https ://www.intel.com/content/www/us/en/developer/articles/technical/fast-computation-of-adler32-checksums.html
+	// https://www.intel.com/content/www/us/en/developer/articles/technical/fast-computation-of-adler32-checksums.html
 	// SSE 4.1, 16 bytes per iteration
 	static uint32_t adler32_sse_16(const uint8_t* p, size_t len, uint32_t initial)
 	{
