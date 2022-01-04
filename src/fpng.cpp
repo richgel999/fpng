@@ -290,6 +290,8 @@ namespace fpng
 	}
 #endif
 
+#if FPNG_X86_OR_X64_CPU && !FPNG_NO_SSE 
+
 #ifndef _MSC_VER
 	static void do_cpuid(uint32_t eax, uint32_t ecx, uint32_t* regs)
 	{
@@ -308,7 +310,6 @@ namespace fpng
 	}
 #endif
 
-#if FPNG_X86_OR_X64_CPU && !FPNG_NO_SSE 
 	struct cpu_info
 	{
 		cpu_info() { memset(this, 0, sizeof(*this)); }
