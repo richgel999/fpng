@@ -23,6 +23,10 @@
 #define QOI_IMPLEMENTATION
 #include "qoi.h"
 
+#define WUFFS_IMPLEMENTATION
+#define WUFFS_CONFIG__STATIC_FUNCTIONS
+#include "wuffs-v0.3.c"
+
 typedef std::vector<uint8_t> uint8_vec;
 
 typedef uint64_t timer_ticks;
@@ -272,7 +276,11 @@ static void write_func_stbi(void* context, void* data, int size)
 static bool load_listing_file(const std::string& f, std::vector<std::string>& filenames)
 {
 	std::string filename(f);
-	//filename.erase(0, 1);
+	if (filename.size() == 0)
+		return false;
+
+	if (filename[0] == '@')
+		filename.erase(0, 1);
 
 	FILE* pFile = nullptr;
 #ifdef _WIN32
@@ -670,6 +678,295 @@ static int fuzz_test_encoder2(uint32_t fpng_flags)
 	return EXIT_SUCCESS;
 }
 
+static void* wuffs_decode(void* pData, size_t data_len, uint32_t &width, uint32_t &height) 
+{
+	wuffs_png__decoder* pDec = wuffs_png__decoder__alloc();
+	if (!pDec) 
+		return nullptr;
+
+	wuffs_base__image_config ic;
+	wuffs_base__io_buffer src = wuffs_base__ptr_u8__reader((uint8_t *)pData, data_len, true);
+	wuffs_base__status status = wuffs_png__decoder__decode_image_config(pDec, &ic, &src);
+	
+	if (status.repr) 
+	{
+		free(pDec);
+		return nullptr;
+	}
+
+	width = wuffs_base__pixel_config__width(&ic.pixcfg);
+	height = wuffs_base__pixel_config__height(&ic.pixcfg);
+
+	wuffs_base__pixel_config__set(&ic.pixcfg, WUFFS_BASE__PIXEL_FORMAT__RGBA_NONPREMUL, WUFFS_BASE__PIXEL_SUBSAMPLING__NONE, width, height);
+
+	uint64_t workbuf_len = wuffs_png__decoder__workbuf_len(pDec).max_incl;
+	if (workbuf_len > SIZE_MAX) 
+	{
+		free(pDec);
+		return nullptr;
+	}
+
+	wuffs_base__slice_u8 workbuf_slice = wuffs_base__make_slice_u8( (uint8_t *)malloc((size_t)workbuf_len), (size_t)workbuf_len); 
+	if (!workbuf_slice.ptr) 
+	{
+		free(pDec);
+		return nullptr;
+	}
+
+	const uint64_t total_pixels = (uint64_t)width * (uint64_t)height;
+	if (total_pixels > (SIZE_MAX >> 2U)) 
+	{
+		free(workbuf_slice.ptr);
+		free(pDec);
+		return nullptr;
+	}
+
+	void* pDecode_buf = malloc((size_t)(total_pixels * sizeof(uint32_t)));
+	if (!pDecode_buf)
+	{
+		free(workbuf_slice.ptr);
+		free(pDec);
+		return nullptr;
+	}
+
+	wuffs_base__slice_u8 pixbuf_slice = wuffs_base__make_slice_u8((uint8_t*)pDecode_buf, (size_t)(total_pixels * sizeof(uint32_t)));
+
+	wuffs_base__pixel_buffer pb;
+	status = wuffs_base__pixel_buffer__set_from_slice(&pb, &ic.pixcfg, pixbuf_slice);
+	
+	if (status.repr) 
+	{
+		free(workbuf_slice.ptr);
+		free(pDecode_buf);
+		free(pDec);
+		return nullptr;
+	}
+
+	status = wuffs_png__decoder__decode_frame(pDec, &pb, &src, WUFFS_BASE__PIXEL_BLEND__SRC, workbuf_slice, NULL);
+	
+	if (status.repr) 
+	{
+		free(workbuf_slice.ptr);
+		free(pDecode_buf);
+		free(pDec);
+		return nullptr;
+	}
+			
+	free(workbuf_slice.ptr);
+	free(pDec);
+
+	return pDecode_buf;
+}
+
+#if FPNG_TRAIN_HUFFMAN_TABLES
+static int training_mode(const char* pFilename)
+{
+	if (pFilename[0] != '@')
+	{
+		fprintf(stderr, "Must specify list of files to read using @filelist.txt\n");
+		return EXIT_FAILURE;
+	}
+
+	std::vector<std::string> files_to_process;
+
+	if (!load_listing_file(std::string(pFilename), files_to_process))
+		return EXIT_FAILURE;
+
+	uint64_t opaque_freq[fpng::HUFF_COUNTS_SIZE], alpha_freq[fpng::HUFF_COUNTS_SIZE];
+	memset(opaque_freq, 0, sizeof(opaque_freq));
+	memset(alpha_freq, 0, sizeof(alpha_freq));
+
+	uint32_t total_alpha_files = 0, total_opaque_files = 0, total_failed_loading = 0;
+
+	for (uint32_t file_index = 0; file_index < files_to_process.size(); file_index++)
+	{
+		const char* pFilename = files_to_process[file_index].c_str();
+
+		printf("Processing file \"%s\"\n", pFilename);
+
+		uint8_vec source_file_data;
+		if (!read_file_to_vec(pFilename, source_file_data))
+		{
+			fprintf(stderr, "Failed reading source file data \"%s\"\n", pFilename);
+			return EXIT_FAILURE;
+		}
+
+		uint32_t source_width = 0, source_height = 0;
+		uint8_t* pSource_image_buffer = nullptr;
+		unsigned error = lodepng_decode_memory(&pSource_image_buffer, &source_width, &source_height, source_file_data.data(), source_file_data.size(), LCT_RGBA, 8);
+		if (error != 0)
+		{
+			fprintf(stderr, "WARNING: Failed unpacking source file \"%s\" using lodepng! Skipping.\n", pFilename);
+			total_failed_loading++;
+			continue;
+		}
+
+		const color_rgba* pSource_pixels32 = (const color_rgba*)pSource_image_buffer;
+		uint32_t total_source_pixels = source_width * source_height;
+		bool has_alpha = false;
+		for (uint32_t i = 0; i < total_source_pixels; i++)
+		{
+			if (pSource_pixels32[i].m_c[3] < 255)
+			{
+				has_alpha = true;
+				break;
+			}
+		}
+
+		const uint32_t source_chans = has_alpha ? 4 : 3;
+
+		printf("Dimensions: %ux%u, Has Alpha: %u, Total Pixels: %u, bytes: %u (%f MB)\n", source_width, source_height, has_alpha, total_source_pixels, total_source_pixels * source_chans, total_source_pixels * source_chans / (1024.0f * 1024.0f));
+
+		uint8_vec source_image_buffer24(total_source_pixels * 3);
+		for (uint32_t i = 0; i < total_source_pixels; i++)
+		{
+			source_image_buffer24[i * 3 + 0] = pSource_pixels32[i].m_c[0];
+			source_image_buffer24[i * 3 + 1] = pSource_pixels32[i].m_c[1];
+			source_image_buffer24[i * 3 + 2] = pSource_pixels32[i].m_c[2];
+		}
+		const uint8_t* pSource_pixels24 = source_image_buffer24.data();
+
+		memset(fpng::g_huff_counts, 0, sizeof(fpng::g_huff_counts));
+
+		std::vector<uint8_t> fpng_file_buf;
+		bool status = fpng::fpng_encode_image_to_memory((source_chans == 4) ? (const void*)pSource_pixels32 : (const void*)pSource_pixels24, source_width, source_height, source_chans, fpng_file_buf, fpng::FPNG_ENCODE_SLOWER);
+		if (!status)
+		{
+			fprintf(stderr, "fpng_encode_image_to_memory() failed!\n");
+			return EXIT_FAILURE;
+		}
+
+		// Sanity check the PNG file using lodepng
+		{
+			uint32_t lodepng_decoded_w = 0, lodepng_decoded_h = 0;
+			uint8_t* lodepng_decoded_buffer = nullptr;
+
+			int error = lodepng_decode_memory(&lodepng_decoded_buffer, &lodepng_decoded_w, &lodepng_decoded_h, (uint8_t*)fpng_file_buf.data(), fpng_file_buf.size(), LCT_RGBA, 8);
+			if (error != 0)
+			{
+				fprintf(stderr, "lodepng_decode_memory() failed!\n");
+				return EXIT_FAILURE;
+			}
+
+			if (memcmp(lodepng_decoded_buffer, pSource_pixels32, total_source_pixels * 4) != 0)
+			{
+				fprintf(stderr, "FPNG decode verification failed (using lodepng)!\n");
+				return EXIT_FAILURE;
+			}
+			free(lodepng_decoded_buffer);
+		}
+
+		if (source_chans == 4)
+		{
+			for (uint32_t i = 0; i < fpng::HUFF_COUNTS_SIZE; i++)
+				alpha_freq[i] += fpng::g_huff_counts[i];
+
+			total_alpha_files++;
+		}
+		else
+		{
+			for (uint32_t i = 0; i < fpng::HUFF_COUNTS_SIZE; i++)
+				opaque_freq[i] += fpng::g_huff_counts[i];
+
+			total_opaque_files++;
+		}
+
+	} // filename_index
+
+	printf("Total alpha files: %u\n", total_alpha_files);
+	printf("Total opaque files: %u\n", total_opaque_files);
+	printf("Total failed loading: %u\n", total_failed_loading);
+
+	if (!total_alpha_files && !total_opaque_files)
+	{
+		fprintf(stderr, "No failed were loaded!\n");
+		return EXIT_FAILURE;
+	}
+
+	if (total_opaque_files)
+	{
+		std::vector<uint8_t> dyn_prefix;
+		uint64_t bit_buf = 0;
+		int bit_buf_size = 0;
+		uint32_t codes[fpng::HUFF_COUNTS_SIZE];
+		uint8_t codesizes[fpng::HUFF_COUNTS_SIZE];
+		
+		bool status = fpng::create_dynamic_block_prefix(opaque_freq, 3, dyn_prefix, bit_buf, bit_buf_size, codes, codesizes);
+		if (!status)
+		{
+			fprintf(stderr, "fpng::create_dynamic_block_prefix() failed!\n");
+			return EXIT_FAILURE;
+		}
+
+		printf("\n");
+		printf("static const uint8_t g_dyn_huff_3[] = {\n");
+		for (uint32_t i = 0; i < dyn_prefix.size(); i++) 
+		{ 
+			printf("%u%c ", dyn_prefix[i], (i != (dyn_prefix.size() - 1)) ? ',' : ' '); 
+			if ((i & 31) == 31) 
+				printf("\n"); 
+		}
+		printf("};\n");
+		printf("const uint32_t DYN_HUFF_3_BITBUF = %u, DYN_HUFF_3_BITBUF_SIZE = %u;\n", (uint32_t)bit_buf, (uint32_t)bit_buf_size);
+
+		printf("static const struct { uint8_t m_code_size; uint16_t m_code; } g_dyn_huff_3_codes[288] = {\n");
+		for (uint32_t i = 0; i < fpng::HUFF_COUNTS_SIZE; i++)
+		{
+			printf("{%u,%u}%c", codesizes[i], codes[i], (i != (fpng::HUFF_COUNTS_SIZE - 1)) ? ',' : ' ');
+			if ((i & 31) == 31)
+				printf("\n");
+		}
+		printf("};\n");
+	}
+
+	if (total_alpha_files)
+	{
+		std::vector<uint8_t> dyn_prefix;
+		uint64_t bit_buf = 0;
+		int bit_buf_size = 0;
+		uint32_t codes[fpng::HUFF_COUNTS_SIZE];
+		uint8_t codesizes[fpng::HUFF_COUNTS_SIZE];
+		bool status = fpng::create_dynamic_block_prefix(alpha_freq, 4, dyn_prefix, bit_buf, bit_buf_size, codes, codesizes);
+		if (!status)
+		{
+			fprintf(stderr, "fpng::create_dynamic_block_prefix() failed!\n");
+			return EXIT_FAILURE;
+		}
+
+		printf("\n");
+		printf("static const uint8_t g_dyn_huff_4[] = {\n");
+		for (uint32_t i = 0; i < dyn_prefix.size(); i++)
+		{
+			printf("%u%c ", dyn_prefix[i], (i != (dyn_prefix.size() - 1)) ? ',' : ' ');
+			if ((i & 31) == 31)
+				printf("\n");
+		}
+		printf("};\n");
+		printf("const uint32_t DYN_HUFF_4_BITBUF = %u, DYN_HUFF_4_BITBUF_SIZE = %u;\n", (uint32_t)bit_buf, (uint32_t)bit_buf_size);
+
+		printf("static const struct { uint8_t m_code_size; uint16_t m_code; } g_dyn_huff_4_codes[288] = {\n");
+		for (uint32_t i = 0; i < fpng::HUFF_COUNTS_SIZE; i++)
+		{
+			printf("{%u,%u}%c", codesizes[i], codes[i], (i != (fpng::HUFF_COUNTS_SIZE - 1)) ? ',' : ' ');
+			if ((i & 31) == 31)
+				printf("\n");
+		}
+		printf("};\n");
+	}
+
+	return EXIT_SUCCESS;
+}
+#else
+static int training_mode(const char* pFilename)
+{
+	(void)pFilename;
+
+	fprintf(stderr, "Must compile with FPNG_TRAIN_HUFFMAN_TABLES set to 1\n");
+
+	return EXIT_FAILURE;
+}
+#endif
+
 int main(int arg_c, char **arg_v)
 {
 	fpng::fpng_init();
@@ -686,6 +983,7 @@ int main(int arg_c, char **arg_v)
 		printf("-e: Fuzz encoder/decoder by randomly modifying an input image's pixels\n");
 		printf("-f: Decompress specified PNG image using FPNG, then exit\n");
 		printf("-a: Swizzle input image's green to alpha, for testing 32bpp correlation alpha\n");
+		printf("-t: Train Huffman tables on @filelist.txt (must compile with FPNG_TRAIN_HUFFMAN_TABLES=1)\n");
 		return EXIT_FAILURE;
 	}
 
@@ -698,6 +996,7 @@ int main(int arg_c, char **arg_v)
 	bool fuzz_encoder2 = false;
 	bool fuzz_decoder = false;
 	bool swizzle_green_to_alpha = false;
+	bool training_mode_flag = false;
 
 	for (int i = 1; i < arg_c; i++)
 	{
@@ -732,6 +1031,10 @@ int main(int arg_c, char **arg_v)
 			{
 				swizzle_green_to_alpha = true;
 			}
+			else if (pArg[1] == 't')
+			{
+				training_mode_flag = true;
+			}
 			else
 			{
 				fprintf(stderr, "Unrecognized option: %s\n", pArg);
@@ -761,6 +1064,9 @@ int main(int arg_c, char **arg_v)
 
 	if (fuzz_encoder2)
 		return fuzz_test_encoder2(fpng_flags);
+
+	if (training_mode_flag)
+		return training_mode(pFilename);
 
 	if (!csv_flag)
 	{
@@ -920,7 +1226,7 @@ int main(int arg_c, char **arg_v)
 #endif
 	}
 	
-	double fpng_decode_time = 0.0f, lodepng_decode_time = 0.0f, stbi_decode_time = 0.0f, qoi_decode_time = 0.0f;
+	double fpng_decode_time = 0.0f, lodepng_decode_time = 0.0f, stbi_decode_time = 0.0f, qoi_decode_time = 0.0f, wuffs_decode_time = 0.0f;
 
 	// Decode the file using our decompressor
 	{
@@ -1087,6 +1393,51 @@ int main(int arg_c, char **arg_v)
 		}
 		free(p);
 	}
+
+	// Verify FPNG's output data using wuffs
+	{
+		void* p = nullptr;
+
+		//static void* 
+
+		wuffs_decode_time = 1e+9f;
+		for (uint32_t i = 0; i < NUM_TIMES_TO_DECODE; i++)
+		{
+			if (p)
+			{
+				free(p);
+				p = nullptr;
+			}
+
+			tm.start();
+			
+			uint32_t w, h;
+			p = wuffs_decode(fpng_file_buf.data(), fpng_file_buf.size(), w, h);
+			if (!p)
+				break;
+
+			if ((w != source_width) || (h != source_height))
+			{
+				fprintf(stderr, "wuffs failed decompressing FPNG's output PNG file!\n");
+				return EXIT_FAILURE;
+			}
+
+			wuffs_decode_time = minimum(wuffs_decode_time, tm.get_elapsed_secs());
+		}
+
+		if (!p)
+		{
+			fprintf(stderr, "wuffs failed decompressing FPNG's output PNG file!\n");
+			return EXIT_FAILURE;
+		}
+
+		if (memcmp(p, pSource_pixels32, total_source_pixels * 4) != 0)
+		{
+			fprintf(stderr, "FPNG decode verification failed (using wuffs)!\n");
+			return EXIT_FAILURE;
+		}
+		free(p);
+	}
 		
 	// Compress with lodepng
 
@@ -1211,6 +1562,7 @@ int main(int arg_c, char **arg_v)
 		printf("FPNG:    %3.6f secs, %4.3f MP/s\n", fpng_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / fpng_decode_time);
 		printf("lodepng: %3.6f secs, %4.3f MP/s\n", lodepng_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / lodepng_decode_time);
 		printf("stbi:    %3.6f secs, %4.3f MP/s\n", stbi_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / stbi_decode_time);
+		printf("wuffs:   %3.6f secs, %4.3f MP/s\n", wuffs_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / wuffs_decode_time);
 		printf("qoi:     %3.6f secs, %4.3f MP/s\n", qoi_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / qoi_decode_time);
 	}
 
