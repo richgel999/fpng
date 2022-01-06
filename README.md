@@ -141,6 +141,8 @@ Importantly, the fpng decoder can explictly/purposely only decode PNG files writ
 
 fpng's compressor places a special private ancillary chunk in its output files, which other PNG decompressors will ignore. The decompressor uses this chunk to determine if the file was written by fpng (enabling fast decompression). This chunk's definition is [here](https://github.com/richgel999/fpng/wiki/fdEC-PNG-chunk-definition).
 
+In single pass mode (the default), fpng uses a set of precomputed Deflate dynamic Huffman tables. Here's [how to use the fpng_test tool to compute custom tables](https://github.com/richgel999/fpng/wiki/How-to-train-new-Huffman-tables-for-custom-content). 
+
 Earlier versions of fpng (before 1.0.5) wrote valid PNG's that wuffs wouldn't accept. As far as I can tell this is a [bug in wuffs](https://github.com/google/wuffs/issues/66). I've added a workaround to fpng's encoder and re-trained its single pass Huffman tables, and I've also added the wuffs decoder to the png_test app.
 
 lodepng v20210627 fetched 12/18/2021
