@@ -684,6 +684,8 @@ static void* wuffs_decode(void* pData, size_t data_len, uint32_t &width, uint32_
 	if (!pDec) 
 		return nullptr;
 
+	wuffs_png__decoder__set_quirk_enabled(pDec, WUFFS_BASE__QUIRK_IGNORE_CHECKSUM, true);
+
 	wuffs_base__image_config ic;
 	wuffs_base__io_buffer src = wuffs_base__ptr_u8__reader((uint8_t *)pData, data_len, true);
 	wuffs_base__status status = wuffs_png__decoder__decode_image_config(pDec, &ic, &src);
@@ -1492,7 +1494,7 @@ int main(int arg_c, char **arg_v)
 	}
 
 	if (!csv_flag)
-		printf("stbi:    %4.6f secs, %u bytes, %4.3f MB, %4.3f MP/s\n", stbi_best_time, (uint32_t)stbi_file_buf.size(), (double)stbi_file_buf.size() / (1024.0f * 1024.0f), (total_source_pixels / (1024.0f * 1024.0f)) / stbi_best_time);
+		printf("stbi:    %4.6f secs, %u bytes, %4.3f MB, %4.3f MP/sec\n", stbi_best_time, (uint32_t)stbi_file_buf.size(), (double)stbi_file_buf.size() / (1024.0f * 1024.0f), (total_source_pixels / (1024.0f * 1024.0f)) / stbi_best_time);
 	
 	if (!csv_flag)
 	{
@@ -1559,11 +1561,11 @@ int main(int arg_c, char **arg_v)
 	if (!csv_flag)
 	{
 		printf("** Decoding:\n");
-		printf("FPNG:    %3.6f secs, %4.3f MP/s\n", fpng_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / fpng_decode_time);
-		printf("lodepng: %3.6f secs, %4.3f MP/s\n", lodepng_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / lodepng_decode_time);
-		printf("stbi:    %3.6f secs, %4.3f MP/s\n", stbi_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / stbi_decode_time);
-		printf("wuffs:   %3.6f secs, %4.3f MP/s\n", wuffs_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / wuffs_decode_time);
-		printf("qoi:     %3.6f secs, %4.3f MP/s\n", qoi_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / qoi_decode_time);
+		printf("FPNG:    %3.6f secs, %4.3f MP/sec\n", fpng_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / fpng_decode_time);
+		printf("lodepng: %3.6f secs, %4.3f MP/sec\n", lodepng_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / lodepng_decode_time);
+		printf("stbi:    %3.6f secs, %4.3f MP/sec\n", stbi_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / stbi_decode_time);
+		printf("wuffs:   %3.6f secs, %4.3f MP/sec\n", wuffs_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / wuffs_decode_time);
+		printf("qoi:     %3.6f secs, %4.3f MP/sec\n", qoi_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / qoi_decode_time);
 	}
 
 	if (csv_flag)
