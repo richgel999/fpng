@@ -957,7 +957,6 @@ do { \
 		
 		const uint32_t dist_sym = g_defl_small_dist_sym[num_chans - 1];
 		dh.m_huff_count[1][dist_sym] = 1;
-		dh.m_huff_count[1][dist_sym + 1] = 1; // to workaround a bug in wuffs decoder
 			
 		prefix.resize(4096);
 		uint8_t* pDst = prefix.data();
@@ -1095,7 +1094,6 @@ do { \
 
 		memset(&dh.m_huff_count[1][0], 0, sizeof(dh.m_huff_count[1][0]) * DEFL_MAX_HUFF_SYMBOLS_1);
 		dh.m_huff_count[1][dist_sym] = 1;
-		dh.m_huff_count[1][dist_sym + 1] = 1; // to workaround a bug in wuffs decoder
 
 		if (!defl_start_dynamic_block(&dh, pDst, dst_ofs, dst_buf_size, bit_buf, bit_buf_size))
 			return 0;
@@ -1374,7 +1372,6 @@ do { \
 		
 		memset(&dh.m_huff_count[1][0], 0, sizeof(dh.m_huff_count[1][0]) * DEFL_MAX_HUFF_SYMBOLS_1);
 		dh.m_huff_count[1][dist_sym] = 1;
-		dh.m_huff_count[1][dist_sym + 1] = 1; // to workaround a bug in wuffs decoder
 
 		if (!defl_start_dynamic_block(&dh, pDst, dst_ofs, dst_buf_size, bit_buf, bit_buf_size))
 			return 0;
@@ -2059,20 +2056,12 @@ do_literals:
 		for (uint32_t i = 0; i < num_dist_codes; i++)
 			total_valid_distcodes += (code_sizes[num_lit_codes + i] == 1);
 		
-		// 1 or 2 because the first version of FPNG only issued 1 valid distance code, but that upset wuffs. So we let 1 or 2 through.
-		if ((total_valid_distcodes < 1) || (total_valid_distcodes > 2))
+		if (total_valid_distcodes != 1)
 			return false;
 
 		if (code_sizes[num_lit_codes + (num_chans - 1)] != 1)
 			return false;
 
-		if (total_valid_distcodes == 2)
-		{
-			// If there are two valid distance codes, make sure the first is 1 bit.
-			if (code_sizes[num_lit_codes + num_chans] != 1)
-				return false;
-		}
-						
 		if (!build_decoder_table(num_lit_codes, lit_codesizes, pLit_table))
 			return false;
 
