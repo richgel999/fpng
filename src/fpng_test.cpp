@@ -687,16 +687,17 @@ class MyWuffsDecodeImageCallbacks : public wuffs_aux::DecodeImageCallbacks
 	}
 };
 
-static void* wuffs_decode(void* pData, size_t data_len, uint32_t &width, uint32_t &height)
+// A wuffs_aux::MemOwner is a std::unique_ptr<void, decltype(&free)>.
+static wuffs_aux::MemOwner wuffs_decode(void* pData, size_t data_len, uint32_t &width, uint32_t &height)
 {
 	MyWuffsDecodeImageCallbacks callbacks;
 	wuffs_aux::sync_io::MemoryInput input(static_cast<const uint8_t*>(pData), data_len);
 	wuffs_aux::DecodeImageResult res = wuffs_aux::DecodeImage(callbacks, input);
 	if (!res.error_message.empty())
-		return nullptr;
+		return wuffs_aux::MemOwner(nullptr, &free);
 	width = res.pixbuf.pixcfg.width();
 	height = res.pixbuf.pixcfg.height();
-	return res.pixbuf_mem_owner.release();
+	return std::move(res.pixbuf_mem_owner);
 }
 
 #if FPNG_TRAIN_HUFFMAN_TABLES
@@ -1337,18 +1338,12 @@ int main(int arg_c, char **arg_v)
 
 	// Verify FPNG's output data using wuffs
 	{
-		void* p = nullptr;
-
-		//static void* 
+		wuffs_aux::MemOwner p(nullptr, &free);
 
 		wuffs_decode_time = 1e+9f;
 		for (uint32_t i = 0; i < NUM_TIMES_TO_DECODE; i++)
 		{
-			if (p)
-			{
-				free(p);
-				p = nullptr;
-			}
+			p.reset();
 
 			tm.start();
 			
@@ -1372,12 +1367,11 @@ int main(int arg_c, char **arg_v)
 			return EXIT_FAILURE;
 		}
 
-		if (memcmp(p, pSource_pixels32, total_source_pixels * 4) != 0)
+		if (memcmp(p.get(), pSource_pixels32, total_source_pixels * 4) != 0)
 		{
 			fprintf(stderr, "FPNG decode verification failed (using wuffs)!\n");
 			return EXIT_FAILURE;
 		}
-		free(p);
 	}
 		
 	// Compress with lodepng
