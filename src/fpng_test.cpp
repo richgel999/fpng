@@ -678,86 +678,25 @@ static int fuzz_test_encoder2(uint32_t fpng_flags)
 	return EXIT_SUCCESS;
 }
 
-static void* wuffs_decode(void* pData, size_t data_len, uint32_t &width, uint32_t &height) 
+class MyWuffsDecodeImageCallbacks : public wuffs_aux::DecodeImageCallbacks
 {
-	wuffs_png__decoder* pDec = wuffs_png__decoder__alloc();
-	if (!pDec) 
-		return nullptr;
-
-	wuffs_png__decoder__set_quirk_enabled(pDec, WUFFS_BASE__QUIRK_IGNORE_CHECKSUM, true);
-
-	wuffs_base__image_config ic;
-	wuffs_base__io_buffer src = wuffs_base__ptr_u8__reader((uint8_t *)pData, data_len, true);
-	wuffs_base__status status = wuffs_png__decoder__decode_image_config(pDec, &ic, &src);
-	
-	if (status.repr) 
+	wuffs_base__pixel_format SelectPixfmt(const wuffs_base__image_config&) override
 	{
-		free(pDec);
-		return nullptr;
+		// Override Wuffs' default: RGBA (not BGRA) and NONPREMUL (not PREMUL).
+		return wuffs_base__make_pixel_format(WUFFS_BASE__PIXEL_FORMAT__RGBA_NONPREMUL);
 	}
+};
 
-	width = wuffs_base__pixel_config__width(&ic.pixcfg);
-	height = wuffs_base__pixel_config__height(&ic.pixcfg);
-
-	wuffs_base__pixel_config__set(&ic.pixcfg, WUFFS_BASE__PIXEL_FORMAT__RGBA_NONPREMUL, WUFFS_BASE__PIXEL_SUBSAMPLING__NONE, width, height);
-
-	uint64_t workbuf_len = wuffs_png__decoder__workbuf_len(pDec).max_incl;
-	if (workbuf_len > SIZE_MAX) 
-	{
-		free(pDec);
+static void* wuffs_decode(void* pData, size_t data_len, uint32_t &width, uint32_t &height)
+{
+	MyWuffsDecodeImageCallbacks callbacks;
+	wuffs_aux::sync_io::MemoryInput input(static_cast<const uint8_t*>(pData), data_len);
+	wuffs_aux::DecodeImageResult res = wuffs_aux::DecodeImage(callbacks, input);
+	if (!res.error_message.empty())
 		return nullptr;
-	}
-
-	wuffs_base__slice_u8 workbuf_slice = wuffs_base__make_slice_u8( (uint8_t *)malloc((size_t)workbuf_len), (size_t)workbuf_len); 
-	if (!workbuf_slice.ptr) 
-	{
-		free(pDec);
-		return nullptr;
-	}
-
-	const uint64_t total_pixels = (uint64_t)width * (uint64_t)height;
-	if (total_pixels > (SIZE_MAX >> 2U)) 
-	{
-		free(workbuf_slice.ptr);
-		free(pDec);
-		return nullptr;
-	}
-
-	void* pDecode_buf = malloc((size_t)(total_pixels * sizeof(uint32_t)));
-	if (!pDecode_buf)
-	{
-		free(workbuf_slice.ptr);
-		free(pDec);
-		return nullptr;
-	}
-
-	wuffs_base__slice_u8 pixbuf_slice = wuffs_base__make_slice_u8((uint8_t*)pDecode_buf, (size_t)(total_pixels * sizeof(uint32_t)));
-
-	wuffs_base__pixel_buffer pb;
-	status = wuffs_base__pixel_buffer__set_from_slice(&pb, &ic.pixcfg, pixbuf_slice);
-	
-	if (status.repr) 
-	{
-		free(workbuf_slice.ptr);
-		free(pDecode_buf);
-		free(pDec);
-		return nullptr;
-	}
-
-	status = wuffs_png__decoder__decode_frame(pDec, &pb, &src, WUFFS_BASE__PIXEL_BLEND__SRC, workbuf_slice, NULL);
-	
-	if (status.repr) 
-	{
-		free(workbuf_slice.ptr);
-		free(pDecode_buf);
-		free(pDec);
-		return nullptr;
-	}
-			
-	free(workbuf_slice.ptr);
-	free(pDec);
-
-	return pDecode_buf;
+	width = res.pixbuf.pixcfg.width();
+	height = res.pixbuf.pixcfg.height();
+	return res.pixbuf_mem_owner.release();
 }
 
 #if FPNG_TRAIN_HUFFMAN_TABLES
