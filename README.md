@@ -135,6 +135,10 @@ namespace fpng {
 }
 ```
 
+## Python Bindings
+
+They are [here](https://github.com/qrmt/fpng-python). Thanks [Oskar!](https://github.com/qrmt).
+
 ## Notes
 
 This version of FPNG always uses PNG filter #2 and is limited to only RLE matches (i.e. LZ matches with a match distance of either 3 or 4). It's around 5% weaker than the original release, which used LZRW1 parsing. (I'll eventually add back in the original parser as an option, but doing that will add more code/complexity to the project.)
