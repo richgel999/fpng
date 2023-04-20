@@ -141,7 +141,7 @@ They are [here](https://github.com/qrmt/fpng-python). Thanks [Oskar!](https://gi
 
 ## Notes
 
-- 4/20/2023: I upgraded lodepng, stb_image.h, and qoi to the latest versions. I also added pvpngreader.cpp/.h for benchmarking, which uses miniz internally for decompression. 
+- 4/20/2023: I upgraded lodepng, stb_image, and qoi to the latest versions. I also added pvpngreader.cpp/.h for benchmarking, which uses miniz internally for decompression. The relative encoding/decoding performance of QOI vs. PNG in general seems quite dependent on the C/C++ compiler you use. 
 
 lodepng v20230410 fetched 4/20/2023
 
