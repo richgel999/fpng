@@ -1178,7 +1178,7 @@ int main(int arg_c, char **arg_v)
 
 	const uint8_t* pSource_pixels24 = source_image_buffer24.data();
 	
-	const uint32_t NUM_TIMES_TO_ENCODE = csv_flag ? 3 : 1;
+	const uint32_t NUM_TIMES_TO_ENCODE = csv_flag ? 3 : 3;
 	const uint32_t NUM_TIMES_TO_DECODE = 5;
 	interval_timer tm;
 
