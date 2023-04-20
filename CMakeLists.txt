@@ -68,6 +68,7 @@ set(FPNG_SRC_LIST ${COMMON_SRC_LIST}
 	src/fpng.cpp
 	src/fpng_test.cpp
 	src/lodepng.cpp
+	src/pvpngreader.cpp
 	)
 
 if (APPLE)

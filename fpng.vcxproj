@@ -147,6 +147,7 @@
     <ClCompile Include="src/fpng.cpp" />
     <ClCompile Include="src/fpng_test.cpp" />
     <ClCompile Include="src/lodepng.cpp" />
+    <ClCompile Include="src\pvpngreader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src/fpng.h" />
@@ -154,6 +155,8 @@
     <ClInclude Include="src/qoi.h" />
     <ClInclude Include="src/stb_image.h" />
     <ClInclude Include="src/stb_image_write.h" />
+    <ClInclude Include="src\basisu_miniz.h" />
+    <ClInclude Include="src\pvpngreader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

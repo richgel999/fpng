@@ -27,6 +27,9 @@
 #define WUFFS_CONFIG__STATIC_FUNCTIONS
 #include "wuffs-v0.3.c"
 
+#include "basisu_miniz.h"
+#include "pvpngreader.h"
+
 typedef std::vector<uint8_t> uint8_vec;
 
 typedef uint64_t timer_ticks;
@@ -1228,7 +1231,7 @@ int main(int arg_c, char **arg_v)
 #endif
 	}
 	
-	double fpng_decode_time = 0.0f, lodepng_decode_time = 0.0f, stbi_decode_time = 0.0f, qoi_decode_time = 0.0f, wuffs_decode_time = 0.0f;
+	double fpng_decode_time = 0.0f, lodepng_decode_time = 0.0f, stbi_decode_time = 0.0f, qoi_decode_time = 0.0f, wuffs_decode_time = 0.0f, pvpng_decode_time = 0.0f;
 
 	// Decode the file using our decompressor
 	{
@@ -1542,21 +1545,65 @@ int main(int arg_c, char **arg_v)
 		
 	// Validate QOI's output file
 	{
+		qoi_decode_time = 1e+9f;
+
 		qoi_desc qddesc;
-		tm.start();
-		void* pQOI_decomp_data = qoi_decode(pQOI_data, qoi_len, &qddesc, 4);
-		qoi_decode_time = tm.get_elapsed_secs();
-				
-		if (memcmp(pQOI_decomp_data, pSource_pixels32, total_source_pixels * 4) != 0)
+		for (uint32_t i = 0; i < NUM_TIMES_TO_ENCODE; i++)
 		{
-			fprintf(stderr, "QOI verification failure!\n");
-			return EXIT_FAILURE;
+			tm.start();
+			void* pQOI_decomp_data = qoi_decode(pQOI_data, qoi_len, &qddesc, 4);
+
+			qoi_decode_time = minimum(qoi_decode_time, tm.get_elapsed_secs());
+
+			if (memcmp(pQOI_decomp_data, pSource_pixels32, total_source_pixels * 4) != 0)
+			{
+				fprintf(stderr, "QOI verification failure!\n");
+				return EXIT_FAILURE;
+			}
+
+			free(pQOI_decomp_data);
 		}
-		free(pQOI_decomp_data);
 	}
 
 	free(pQOI_data);
 	pQOI_data = nullptr;
+		
+	{
+		// Decode the PNG file using pvpng, which ships with BasisU and uses miniz for decompression.
+
+		pvpng_decode_time = 1e+9f;
+
+		for (uint32_t i = 0; i < NUM_TIMES_TO_ENCODE; i++)
+		{
+			uint32_t width = 0, height = 0, num_chans = 0;
+
+			tm.start();
+
+			void* pImage_data = pv_png::load_png(fpng_file_buf.data(), fpng_file_buf.size(), source_chans, width, height, num_chans);
+
+			pvpng_decode_time = minimum(pvpng_decode_time, tm.get_elapsed_secs());
+
+			if (!pImage_data)
+			{
+				fprintf(stderr, "Failed decoding using pvpng! (1)\n");
+				return EXIT_FAILURE;
+			}
+
+			if ((num_chans != source_chans) || (width != source_width) || (height != source_height))
+			{
+				fprintf(stderr, "Failed decoding using pvpng! (2)\n");
+				return EXIT_FAILURE;
+			}
+
+			if (memcmp((source_chans == 3) ? (const void*)pSource_pixels24 : (const void*)pSource_pixels32, pImage_data, width * height * source_chans) != 0)
+			{
+				fprintf(stderr, "Failed decoding using pvpng! (3)\n");
+				return EXIT_FAILURE;
+			}
+
+			free(pImage_data);
+		}
+	}
 
 	if (!csv_flag)
 	{
@@ -1565,6 +1612,7 @@ int main(int arg_c, char **arg_v)
 		printf("lodepng: %3.6f secs, %4.3f MP/sec\n", lodepng_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / lodepng_decode_time);
 		printf("stbi:    %3.6f secs, %4.3f MP/sec\n", stbi_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / stbi_decode_time);
 		printf("wuffs:   %3.6f secs, %4.3f MP/sec\n", wuffs_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / wuffs_decode_time);
+		printf("pvpng:   %3.6f secs, %4.3f MP/sec\n", pvpng_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / pvpng_decode_time);
 		printf("qoi:     %3.6f secs, %4.3f MP/sec\n", qoi_decode_time, (total_source_pixels / (1024.0f * 1024.0f)) / qoi_decode_time);
 	}
 
@@ -1574,12 +1622,13 @@ int main(int arg_c, char **arg_v)
 
 		const double source_megapixels = total_source_pixels / (1024.0f * 1024.0f);
 
-		printf("%s, %u, %u, %u,    %f, %f, %f, %4.1f, %4.1f,    %f, %f, %f, %4.1f, %4.1f,    %f, %f, %f, %4.1f, %4.1f,    %f, %f, %f, %4.1f, %4.1f\n",
+		printf("%s, %u, %u, %u,    %f, %f, %f, %4.3f, %4.3f,    %f, %f, %f, %4.3f, %4.3f,    %f, %f, %f, %4.3f, %4.3f,    %f, %f, %f, %4.3f, %4.3f,   %4.3f, %4.3f\n",
 			pFilename, source_width, source_height, source_chans,
 			qoi_best_time, (double)qoi_len / MB, qoi_decode_time, source_megapixels / qoi_best_time, source_megapixels / qoi_decode_time,
 			fpng_best_time, (double)fpng_file_buf.size() / MB, fpng_decode_time, source_megapixels / fpng_best_time, source_megapixels / fpng_decode_time,
 			lodepng_best_time, (double)lodepng_file_buf.size() / MB, lodepng_decode_time, source_megapixels / lodepng_best_time, source_megapixels / lodepng_decode_time,
-			stbi_best_time, (double)stbi_file_buf.size() / MB, stbi_decode_time, source_megapixels / stbi_best_time, source_megapixels / stbi_decode_time
+			stbi_best_time, (double)stbi_file_buf.size() / MB, stbi_decode_time, source_megapixels / stbi_best_time, source_megapixels / stbi_decode_time,
+			pvpng_decode_time, source_megapixels / pvpng_decode_time
 			);
 	}
 
