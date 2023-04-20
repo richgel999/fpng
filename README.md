@@ -141,7 +141,9 @@ They are [here](https://github.com/qrmt/fpng-python). Thanks [Oskar!](https://gi
 
 ## Notes
 
-This version of FPNG always uses PNG filter #2 and is limited to only RLE matches (i.e. LZ matches with a match distance of either 3 or 4). It's around 5% weaker than the original release, which used LZRW1 parsing. (I'll eventually add back in the original parser as an option, but doing that will add more code/complexity to the project.)
+- 4/20/2023: I upgraded lodepng, stb_image.h, and qoi to the latest versions. I also added pvpngreader.cpp/.h for benchmarking, which uses miniz internally for decompression. 
+
+- This version of FPNG always uses PNG filter #2 and is limited to only RLE matches (i.e. LZ matches with a match distance of either 3 or 4). It's around 5% weaker than the original release, which used LZRW1 parsing. (I'll eventually add back in the original parser as an option, but doing that will add more code/complexity to the project.)
 
 Importantly, the fpng decoder can explictly/purposely only decode PNG files written by fpng, otherwise it returns fpng::FPNG_DECODE_NOT_FPNG (so you can fall back to a general purpose PNG decoder).
 
@@ -151,11 +153,13 @@ In single pass mode (the default), fpng uses a set of precomputed Deflate dynami
 
 Earlier versions of fpng (before 1.0.5) wrote valid PNG's that wuffs wouldn't accept. As far as I can tell this is a [bug in wuffs](https://github.com/google/wuffs/issues/66). I've added a workaround to fpng's encoder and re-trained its single pass Huffman tables, and I've also added the wuffs decoder to the png_test app.
 
-lodepng v20210627 fetched 12/18/2021
+lodepng v20230410 fetched 4/20/2023
 
-stb_image_write.h v1.16 fetched 12/18/2021
+stb_image.h v2.28 fetched 4/20/2023
 
-qoi.h fetched 12/18/2021
+stb_image_write.h v1.16 fetched 12/18/2021 (still latest as of 4/20/2023)
+
+qoi.h fetched 4/20/2023
 
 ## Low-level description
 
