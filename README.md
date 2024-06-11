@@ -96,12 +96,19 @@ Call one of these C-style functions in the "fpng" namespace:
 
 ```
 namespace fpng {
-  bool fpng_encode_image_to_memory(const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, std::vector<uint8_t>& out_buf, uint32_t flags = 0);
-  bool fpng_encode_image_to_file(const char* pFilename, const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, uint32_t flags = 0);
+  bool fpng_encode_image_to_memory(const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, std::vector<uint8_t>& out_buf, uint32_t flags = 0, uint32_t pitch = 0);
+  bool fpng_encode_image_to_file(const char* pFilename, const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, uint32_t flags = 0, uint32_t pitch = 0);
 }
 ```
 
-`num_chans` must be 3 or 4. There must be ```w*3*h``` or ```w*4*h``` bytes pointed to by ```pImage```. The image row pitch is always ```w*3``` or ```w*4``` bytes. There is no automatic determination if the image actually uses an alpha channel, so if you call it with 4 you will always get a 32bpp .PNG file.
+`num_chans` must be 3 or 4. 
+
+`pitch` - bytes per line. If `pitch` == 0, then Image's row pitch in bytes is assumed to be ```w * num_chans```
+
+There must be ```pitch * h``` bytes pointed to by ```pImage```. The image row pitch is always ```pitch``` bytes. 
+
+There is no automatic determination if the image actually uses an alpha channel, so if you call it with 4 you will always get a 32bpp .PNG file.
+
 
 ### Decoding
 
