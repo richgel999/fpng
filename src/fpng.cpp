@@ -2997,7 +2997,7 @@ do_literals:
 			const png_chunk_prefix* pChunk = reinterpret_cast<const png_chunk_prefix*>(pImage_u8);
 
 			const uint32_t chunk_len = READ_BE32(&pChunk->m_length);
-			if ((src_ofs + sizeof(uint32_t) + chunk_len + sizeof(uint32_t)) > image_size)
+			if ((src_ofs + sizeof(uint32_t) * 2 + (uint64_t)chunk_len + sizeof(uint32_t)) > image_size)
 				return FPNG_DECODE_FAILED_CHUNK_PARSING;
 
 			for (uint32_t i = 0; i < 4; i++)
