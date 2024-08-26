@@ -105,6 +105,8 @@ namespace fpng {
 
 ### Decoding
 
+Reliably/safely/robustly parsing binary image files in C/C++ is very difficult, so use the included example decoder at your own risk. I've fuzzed it and double and triple checked everything, but it's always possible I've made a mistake. I highly recommend you use [Wuffs](https://github.com/google/wuffs) to decode .PNG's created by this module. Its decoder is extremely fast and robust. Anyhow:
+
 **The included fast decoder will only decode PNG files created by fpng.** However, it has a full PNG chunk parser, and when it detects PNG files not written by fpng it returns the error code `FPNG_DECODE_NOT_FPNG` so you can fall back to a general purpose PNG reader. Also, the decompressor validates the compressed data during decompression and will immediately stop and return `FPNG_DECODE_NOT_FPNG` whenever any of the fpng constraints (implied by the fdEC marker's presence) are violated. You can use ```fpng_get_info()``` to quickly detect if a PNG file can be decoded using fpng.
 
 ```
