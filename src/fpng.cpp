@@ -52,14 +52,6 @@
 	#define FPNG_DISABLE_DECODE_CRC32_CHECKS (0)
 #endif
 
-// Using unaligned loads and stores causes errors when using UBSan. Jam it off.
-#if defined(__has_feature)
-	#if __has_feature(undefined_behavior_sanitizer)
-		#undef FPNG_USE_UNALIGNED_LOADS
-		#define FPNG_USE_UNALIGNED_LOADS (0)
-	#endif
-#endif
-
 // Set to 0 if your platform doesn't support unaligned 32-bit/64-bit reads/writes. 
 #ifndef FPNG_USE_UNALIGNED_LOADS
 	#if FPNG_X86_OR_X64_CPU
@@ -130,56 +122,41 @@ namespace fpng
 #endif
 	}
 
-#if FPNG_USE_UNALIGNED_LOADS
-	#if __BYTE_ORDER == __BIG_ENDIAN
-		#define READ_LE32(p) swap32(*reinterpret_cast<const uint32_t *>(p))
-		#define WRITE_LE32(p, v) *reinterpret_cast<uint32_t *>(p) = swap32((uint32_t)(v))
-		#define WRITE_LE64(p, v) *reinterpret_cast<uint64_t *>(p) = swap64((uint64_t)(v))
-
-		#define READ_BE32(p) *reinterpret_cast<const uint32_t *>(p)
-	#else
-		#define READ_LE32(p) (*reinterpret_cast<const uint32_t *>(p))
-		#define WRITE_LE32(p, v) *reinterpret_cast<uint32_t *>(p) = (uint32_t)(v)
-		#define WRITE_LE64(p, v) *reinterpret_cast<uint64_t *>(p) = (uint64_t)(v)
-
-		#define READ_BE32(p) swap32(*reinterpret_cast<const uint32_t *>(p))
-	#endif
-#else
-	// A good compiler should be able to optimize these routines - hopefully. They are crucial for performance.
 	static inline uint32_t READ_LE32(const void* p)
 	{
-		const uint8_t* pBytes = (const uint8_t*)p;
-		return ((uint32_t)pBytes[0]) | (((uint32_t)pBytes[1]) << 8U) | (((uint32_t)pBytes[2]) << 16U) | (((uint32_t)pBytes[3]) << 24U);
+		uint32_t result;
+		memcpy(&result, p, sizeof(result));
+#if __BYTE_ORDER == __BIG_ENDIAN
+		result = swap32(result);
+#endif
+		return result;
 	}
 
 	static inline uint32_t READ_BE32(const void* p)
 	{
-		const uint8_t* pBytes = (const uint8_t*)p;
-		return ((uint32_t)pBytes[3]) | (((uint32_t)pBytes[2]) << 8U) | (((uint32_t)pBytes[1]) << 16U) | (((uint32_t)pBytes[0]) << 24U);
-	}
-
-	static inline void WRITE_LE32(const void* p, uint32_t v)
-	{
-		uint8_t* pBytes = (uint8_t*)p;
-		pBytes[0] = (uint8_t)(v);
-		pBytes[1] = (uint8_t)(v >> 8);
-		pBytes[2] = (uint8_t)(v >> 16);
-		pBytes[3] = (uint8_t)(v >> 24);
-	}
-
-	static inline void WRITE_LE64(const void* p, uint64_t v)
-	{
-		uint8_t* pBytes = (uint8_t*)p;
-		pBytes[0] = (uint8_t)(v);
-		pBytes[1] = (uint8_t)(v >> 8);
-		pBytes[2] = (uint8_t)(v >> 16);
-		pBytes[3] = (uint8_t)(v >> 24);
-		pBytes[4] = (uint8_t)(v >> 32);
-		pBytes[5] = (uint8_t)(v >> 40);
-		pBytes[6] = (uint8_t)(v >> 48);
-		pBytes[7] = (uint8_t)(v >> 56);
-	}
+		uint32_t result;
+		memcpy(&result, p, sizeof(result));
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		result = swap32(result);
 #endif
+		return result;
+	}
+
+	static inline void WRITE_LE32(void* p, uint32_t v)
+	{
+#if __BYTE_ORDER == __BIG_ENDIAN
+		v = swap32(v);
+#endif
+		memcpy(p, &v, sizeof(v));
+	}
+
+	static inline void WRITE_LE64(void* p, uint64_t v)
+	{
+#if __BYTE_ORDER == __BIG_ENDIAN
+		v = swap64(v);
+#endif
+		memcpy(p, &v, sizeof(v));
+	}
 
 	// Customized the very common case of reading a 24bpp pixel from memory
 	static inline uint32_t READ_RGB_PIXEL(const void* p)
