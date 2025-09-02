@@ -109,29 +109,20 @@ namespace fpng
 	template <typename S> static inline S maximum(S a, S b) { return (a > b) ? a : b; }
 	template <typename S> static inline S minimum(S a, S b) { return (a < b) ? a : b; }
 
-	static inline uint32_t simple_swap32(uint32_t x) { return (x >> 24) | ((x >> 8) & 0x0000FF00) | ((x << 8) & 0x00FF0000) | (x << 24); }
-	static inline uint64_t simple_swap64(uint64_t x) { return (((uint64_t)simple_swap32((uint32_t)x)) << 32U) | simple_swap32((uint32_t)(x >> 32U)); }
-
-	static inline uint32_t swap32(uint32_t x)
-	{
-#if defined(__GNUC__) || defined(__clang__)
-		return __builtin_bswap32(x);
-#else
-		return simple_swap32(x);
-#endif
-	}
-
-	static inline uint64_t swap64(uint64_t x)
-	{
-#if defined(__GNUC__) || defined(__clang__)
-		return __builtin_bswap64(x);
-#else
-		return simple_swap64(x);
-#endif
-	}
-
 #if FPNG_USE_UNALIGNED_LOADS
+	#if defined(__GNUC__) || defined(__clang__)
+		static inline uint32_t swap32(uint32_t x) { return __builtin_bswap32(x); }
+	#else
+		static inline uint32_t swap32(uint32_t x) { return (x >> 24) | ((x >> 8) & 0x0000FF00) | ((x << 8) & 0x00FF0000) | (x << 24); }
+	#endif
+
 	#if __BYTE_ORDER == __BIG_ENDIAN
+		#if defined(__GNUC__) || defined(__clang__)
+			static inline uint64_t swap64(uint64_t x) { return __builtin_bswap64(x); }
+		#else
+			static inline uint64_t swap64(uint64_t x) { return (((uint64_t)swap32((uint32_t)x)) << 32U) | swap32((uint32_t)(x >> 32U)); }
+		#endif
+
 		#define READ_LE32(p) swap32(*reinterpret_cast<const uint32_t *>(p))
 		#define WRITE_LE32(p, v) *reinterpret_cast<uint32_t *>(p) = swap32((uint32_t)(v))
 		#define WRITE_LE64(p, v) *reinterpret_cast<uint64_t *>(p) = swap64((uint64_t)(v))
